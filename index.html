@@ -610,10 +610,8 @@ function phaseMetrics(){
   const list = []; let off = 0; let boardH = Math.max(680, innerHeight + 60);
   for (const p of sortedPhases()){
     const cards = liveCards().filter(c => c.phaseId === p.id);
-    let w = p.width ? Math.max(320, p.width) : 620;
+    let w = Math.max(160, p.width || 620);
     for (const c of cards){
-      const cw = estW(c);
-      w = Math.max(w, (c.x||0) + cw + 36);
       boardH = Math.max(boardH, (c.y||0) + estH(c) + 170);
     }
     list.push({ p, off, w });
@@ -769,22 +767,11 @@ function attachPillPointer(pill, m, idx){
         pill.classList.remove('dragging');
         const dx = ev.clientX - startX;
         const prev = metrics.list[idx - 1];
-        let minW = 320, blocker = null;
-        for (const c of liveCards().filter(x => x.phaseId === prev.p.id)){
-          // phaseMetricsの幅下限と完全に同じ式にする（ズレると縮めても再描画で戻る）
-          const need = (c.x||0) + estW(c) + 36;
-          if (need > minW){ minW = need; blocker = c; }
-        }
         const target = prev.w + dx;
-        const applied = Math.round(Math.max(minW, Math.min(target, 4000)));
+        const applied = Math.round(Math.max(160, Math.min(target, 4000)));
         prev.p.width = applied;
         save(); renderBoard();
-        if (dx < 0 && target < minW - 1){
-          if (applied < prev.w - 1) toast('🗺️ カードに当たるとこまで縮めたよ');
-          else toast('⚠️「' + (blocker ? blocker.title : 'カード') + '」がつっかえて縮められない。先にカードを左に寄せてね');
-        } else {
-          toast('🗺️ 境界を動かした（空の色もついてくる）');
-        }
+        toast('🗺️ 境界を動かした（カードがはみ出てもOK、ドラッグで移動して整えてね）');
       } else if (ev.type === 'pointerup' && Math.abs(ev.clientX - startX) <= 8){
         openPhaseMenu(m.p);
       }
