@@ -108,7 +108,7 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
 
 /* ---------- カード ---------- */
 .card{
-  position:absolute; width:248px;
+  position:absolute; width:max-content; min-width:175px;
   background:var(--paper);
   border:1.5px solid rgba(255,255,255,.9);
   border-radius:var(--radius);
@@ -120,12 +120,12 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
 }
 .card .head{display:flex; align-items:flex-start; gap:7px;}
 .card .emo{font-size:19px; line-height:1.25; flex:none; display:inline-block;}
-.card .ttl{font-weight:900; font-size:13.5px; line-height:1.4; padding-top:1px; word-break:break-all;}
+.card .ttl{font-weight:900; font-size:13.5px; line-height:1.4; padding-top:1px; white-space:nowrap;}
 .card .meta{margin-top:3px; font-size:10.5px; color:var(--ink-soft); display:flex; gap:8px;}
-.card .subs{margin-top:7px; display:flex; flex-wrap:wrap; align-items:center; gap:4px 3px;}
+.card .subs{margin-top:7px; display:flex; flex-wrap:nowrap; align-items:center; gap:4px 3px;}
 .sub-arrow{font-size:10px; color:rgba(38,30,80,.4); font-weight:900; flex:none;}
 .sub{
-  display:flex; align-items:center; gap:6px;
+  display:flex; align-items:center; gap:6px; flex:none; white-space:nowrap;
   background:rgba(38,30,80,.06);
   border:1px solid rgba(38,30,80,.07);
   border-radius:11px; padding:4px 9px;
@@ -562,30 +562,29 @@ const cardById = id => state.cards.find(c => c.id === id);
 const phaseById = id => state.phases.find(p => p.id === id);
 
 /* ---------- 自動レイアウト ---------- */
-function subRows(c){
-  if (!c.subcards.length) return 0;
-  const avail = 224; let rows = 1, w = 0;
-  for (const s of c.subcards){
-    const cw = Math.min(avail, s.title.length * 12 + 44);
-    if (w > 0 && w + cw > avail){ rows++; w = cw; } else { w += cw + 14; }
+const estH = c => c.kind === 'wait' ? 52 : 58 + (c.subcards.length ? 40 : 0);
+function estW(c){
+  if (c.kind === 'wait') return 336;
+  const tw = c.title.length * 14 + 66;
+  let sw = 0;
+  if (c.subcards.length){
+    sw = 26;
+    c.subcards.forEach((s, i) => {
+      sw += s.title.length * 12 + 48 + (s.memo ? 22 : 0) + (i > 0 ? 17 : 0);
+    });
   }
-  return rows;
+  return Math.max(175, tw, sw);
 }
-const estH = c => c.kind === 'wait' ? 52 : 58 + (c.subcards.length ? 10 + subRows(c) * 30 : 0);
 function autoLayout(){
   for (const p of sortedPhases()){
     const cards = state.cards.filter(c => c.phaseId === p.id && !c.deletedAt && c.x == null);
-    let yL = 66, yR = 120;
+    let y = 66, i = 0;
     for (const c of cards){
       const h = estH(c);
-      if (c.kind === 'wait'){
-        const y = Math.max(yL, yR) + 6;
-        c.x = 60; c.y = y; yL = yR = y + h + 22;
-      } else if (yL <= yR){
-        c.x = 22; c.y = yL; yL += h + 20;
-      } else {
-        c.x = 312; c.y = yR; yR += h + 20;
-      }
+      if (c.kind === 'wait'){ c.x = 60; }
+      else { c.x = 22 + (i % 2) * 34; }
+      c.y = y;
+      y += h + 20; i++;
     }
   }
 }
@@ -608,8 +607,8 @@ function phaseMetrics(){
     const cards = liveCards().filter(c => c.phaseId === p.id);
     let w = 620;
     for (const c of cards){
-      const cw = c.kind === 'wait' ? 336 : 248;
-      w = Math.max(w, (c.x||0) + cw + 30);
+      const cw = estW(c);
+      w = Math.max(w, (c.x||0) + cw + 36);
       boardH = Math.max(boardH, (c.y||0) + estH(c) + 170);
     }
     list.push({ p, off, w });
@@ -782,7 +781,7 @@ function attachCardPointer(elCard, c){
         elCard.classList.remove('dragging');
         document.removeEventListener('touchmove', preventScroll);
         if (drag && drag.gx != null){
-          const cw = c.kind === 'wait' ? 336 : 248;
+          const cw = elCard.offsetWidth;
           const cx = drag.gx + cw/2;
           let m = metrics.list.find(x => cx >= x.off && cx < x.off + x.w) || metrics.list.at(-1);
           c.phaseId = m.p.id;
