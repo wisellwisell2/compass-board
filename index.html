@@ -164,20 +164,6 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
 .card.kind-wait .ttl{font-size:12.5px;}
 .card.kind-wait .head{align-items:center;}
 
-/* ---------- 上部タイトル ---------- */
-#brand{
-  position:fixed; top:calc(10px + env(safe-area-inset-top)); left:12px; z-index:30;
-  display:flex; align-items:center; gap:6px;
-  padding:7px 14px; border-radius:999px;
-  background:rgba(16,14,46,.6); color:#fff;
-  font-weight:900; font-size:13px; letter-spacing:.06em;
-  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-  box-shadow:0 4px 14px rgba(8,6,40,.35);
-  pointer-events:none;
-}
-#brand .needle{display:inline-block; animation:needleWobble 3.4s ease-in-out infinite;}
-@keyframes needleWobble{0%,100%{transform:rotate(-12deg);}50%{transform:rotate(14deg);}}
-
 /* ---------- 下部固定バー ---------- */
 #dock{
   position:fixed; left:10px; right:10px;
@@ -369,8 +355,6 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
 </style>
 </head>
 <body>
-
-<div id="brand"><span class="needle">🧭</span>コンパスボード</div>
 
 <div id="boardView">
   <div id="boardScroll"><div id="board"></div></div>
@@ -900,13 +884,49 @@ $('boardScroll').addEventListener('pointerup', e => {
   if (!e.target.closest('.card') && !e.target.closest('.phase-pill')) selectCard(null);
 });
 
+/* ---------- ピンチズーム（俯瞰表示） ---------- */
+(() => {
+  const ZOOM_MIN = 0.35, ZOOM_MAX = 1;
+  let zoom = 1;
+  const pts = new Map();
+  let startDist = 0, startZoom = 1;
+  const scrollEl = $('boardScroll'), boardEl = $('board');
+  scrollEl.addEventListener('pointerdown', e => {
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2){
+      const [a, b] = [...pts.values()];
+      startDist = Math.hypot(a.x - b.x, a.y - b.y);
+      startZoom = zoom;
+      document.addEventListener('touchmove', preventScroll, { passive:false });
+    }
+  });
+  scrollEl.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2 && startDist > 0){
+      const [a, b] = [...pts.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, startZoom * (dist / startDist)));
+      boardEl.style.zoom = zoom;
+    }
+  });
+  const endPinch = e => {
+    pts.delete(e.pointerId);
+    if (pts.size < 2){
+      startDist = 0;
+      document.removeEventListener('touchmove', preventScroll);
+    }
+  };
+  scrollEl.addEventListener('pointerup', endPinch);
+  scrollEl.addEventListener('pointercancel', endPinch);
+})();
+
 /* ---------- ビュー切替 ---------- */
 function setView(v){
   view = v;
   state.settings.lastView = v; save();
   $('boardView').style.display = v === 'board' ? '' : 'none';
   $('compassView').style.display = v === 'compass' ? 'block' : 'none';
-  $('brand').style.display = v === 'board' ? '' : 'none';
   $('dkView').querySelector('.ic').textContent = v === 'board' ? '🧭' : '🗺️';
   $('dkViewLbl').textContent = v === 'board' ? 'コンパス' : 'ボード';
   $('dkView').classList.toggle('toggled', v === 'compass');
