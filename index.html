@@ -769,13 +769,22 @@ function attachPillPointer(pill, m, idx){
         pill.classList.remove('dragging');
         const dx = ev.clientX - startX;
         const prev = metrics.list[idx - 1];
-        let minW = 320;
+        let minW = 320, blocker = null;
         for (const c of liveCards().filter(x => x.phaseId === prev.p.id)){
-          minW = Math.max(minW, (c.x||0) + estW(c) + 36);
+          // phaseMetricsの幅下限と完全に同じ式にする（ズレると縮めても再描画で戻る）
+          const need = (c.x||0) + estW(c) + 36;
+          if (need > minW){ minW = need; blocker = c; }
         }
-        prev.p.width = Math.round(Math.max(minW, Math.min(prev.w + dx, 4000)));
+        const target = prev.w + dx;
+        const applied = Math.round(Math.max(minW, Math.min(target, 4000)));
+        prev.p.width = applied;
         save(); renderBoard();
-        toast('🗺️ 境界を動かした（空の色もついてくる）');
+        if (dx < 0 && target < minW - 1){
+          if (applied < prev.w - 1) toast('🗺️ カードに当たるとこまで縮めたよ');
+          else toast('⚠️「' + (blocker ? blocker.title : 'カード') + '」がつっかえて縮められない。先にカードを左に寄せてね');
+        } else {
+          toast('🗺️ 境界を動かした（空の色もついてくる）');
+        }
       } else if (ev.type === 'pointerup' && Math.abs(ev.clientX - startX) <= 8){
         openPhaseMenu(m.p);
       }
