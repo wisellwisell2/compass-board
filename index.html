@@ -122,7 +122,8 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
 .card .emo{font-size:19px; line-height:1.25; flex:none; display:inline-block;}
 .card .ttl{font-weight:900; font-size:13.5px; line-height:1.4; padding-top:1px; word-break:break-all;}
 .card .meta{margin-top:3px; font-size:10.5px; color:var(--ink-soft); display:flex; gap:8px;}
-.card .subs{margin-top:7px; display:flex; flex-direction:column; gap:4px;}
+.card .subs{margin-top:7px; display:flex; flex-wrap:wrap; align-items:center; gap:4px 3px;}
+.sub-arrow{font-size:10px; color:rgba(38,30,80,.4); font-weight:900; flex:none;}
 .sub{
   display:flex; align-items:center; gap:6px;
   background:rgba(38,30,80,.06);
@@ -561,7 +562,16 @@ const cardById = id => state.cards.find(c => c.id === id);
 const phaseById = id => state.phases.find(p => p.id === id);
 
 /* ---------- 自動レイアウト ---------- */
-const estH = c => c.kind === 'wait' ? 52 : 58 + (c.subcards.length ? 8 + c.subcards.length * 34 : 0);
+function subRows(c){
+  if (!c.subcards.length) return 0;
+  const avail = 224; let rows = 1, w = 0;
+  for (const s of c.subcards){
+    const cw = Math.min(avail, s.title.length * 12 + 44);
+    if (w > 0 && w + cw > avail){ rows++; w = cw; } else { w += cw + 14; }
+  }
+  return rows;
+}
+const estH = c => c.kind === 'wait' ? 52 : 58 + (c.subcards.length ? 10 + subRows(c) * 30 : 0);
 function autoLayout(){
   for (const p of sortedPhases()){
     const cards = state.cards.filter(c => c.phaseId === p.id && !c.deletedAt && c.x == null);
@@ -712,13 +722,14 @@ function buildCard(c, m){
 
   if (c.kind !== 'wait' && c.subcards.length){
     const subs = el('div','subs');
-    for (const s of c.subcards){
+    c.subcards.forEach((s, i) => {
+      if (i > 0) subs.appendChild(el('span','sub-arrow','→'));
       const sc = el('div','sub' + (s.status === 'done' ? ' done' : ''));
       sc.dataset.sid = s.id;
       sc.appendChild(el('span','s-emo', stEmoji(s.status)));
-      sc.appendChild(el('span', null, s.title));
+      sc.appendChild(el('span', null, s.title + (s.memo ? ' 📝' : '')));
       subs.appendChild(sc);
-    }
+    });
     d.appendChild(subs);
   }
 
@@ -735,7 +746,7 @@ function attachCardPointer(elCard, c){
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     const startX = e.clientX, startY = e.clientY;
     let grabbed = false, cancelled = false;
-    const timer = (!c.locked && c.kind !== 'wait' || !c.locked) && !c.locked ? setTimeout(() => {
+    const timer = setTimeout(() => {
       grabbed = true;
       drag = { c, elCard };
       elCard.classList.add('dragging');
@@ -744,7 +755,7 @@ function attachCardPointer(elCard, c){
       document.addEventListener('touchmove', preventScroll, { passive:false });
       const r = elCard.getBoundingClientRect();
       drag.dx = startX - r.left; drag.dy = startY - r.top;
-    }, 300) : null;
+    }, 300);
 
     const onMove = ev => {
       if (!grabbed){
@@ -811,6 +822,10 @@ function handleCardTap(c, ev){
   const subEl = ev.target.closest('.sub');
   if (c.locked){
     selectCard(c.id);
+    if (subEl){
+      const s = c.subcards.find(x => x.id === subEl.dataset.sid);
+      if (s){ openSubPopup(c, s); return; }
+    }
     openLockedPopup(c);
     return;
   }
@@ -976,6 +991,16 @@ function openLockedPopup(c){
   const hint = el('div', null, '今は考えなくていい。');
   hint.style.cssText = 'text-align:center;font-size:11.5px;color:var(--ink-soft);margin-top:12px;';
   p.appendChild(hint);
+  const act = el('div');
+  act.style.cssText = 'display:flex;gap:8px;margin-top:14px;';
+  const dt = el('button','btn ghost mini','📝 詳細をひらく');
+  dt.type = 'button'; dt.style.flex = '1';
+  dt.addEventListener('click', () => { close(); openDetail(c); });
+  const ul = el('button','btn mini','🔓 いま解禁する');
+  ul.type = 'button'; ul.style.flex = '1';
+  ul.addEventListener('click', () => { close(); toggleLock(false); });
+  act.appendChild(dt); act.appendChild(ul);
+  p.appendChild(act);
   o.appendChild(p);
 }
 
@@ -989,11 +1014,10 @@ function openSubPopup(c, s){
   const pt = el('div', null, c.title);
   pt.style.cssText = 'font-size:11px;color:var(--ink-soft);margin-bottom:12px;';
   p.appendChild(pt);
-  if (s.memo){
-    const m = el('div', null, s.memo);
-    m.style.cssText = 'font-size:12.5px;background:#f5f1e6;border-radius:10px;padding:8px 10px;margin-bottom:12px;';
-    p.appendChild(m);
-  }
+  const memoArea = tArea(s.memo, v => { s.memo = v; touchCard(c); save(); }, '例: 官公庁90万は書類待ち / 楽天は来週面談');
+  memoArea.style.minHeight = '54px';
+  const memoFld = fld('📝 メモ（残ってる案件・小タスク）', memoArea);
+  p.appendChild(memoFld);
   const sgw = seg(
     [{v:'todo', label:'😪 まだ'}, {v:'doing', label:'🔥 やってる'}, {v:'done', label:'✅ おわった!'}],
     s.status,
@@ -1012,6 +1036,7 @@ function openSubPopup(c, s){
   );
   p.appendChild(sgw);
   o.appendChild(p);
+  o.addEventListener('pointerdown', e => { if (e.target === o) setTimeout(renderBoard, 50); });
 }
 
 /* ---------- カード詳細シート ---------- */
