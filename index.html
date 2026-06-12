@@ -94,7 +94,7 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
 .phase-band{position:absolute; top:0; bottom:0; pointer-events:none;}
 .phase-band+.phase-band{border-left:2px dashed rgba(255,255,255,.34);}
 .phase-pill{
-  position:absolute; pointer-events:auto;
+  position:absolute; pointer-events:auto; touch-action:none;
   display:flex; align-items:center; gap:7px;
   padding:7px 14px 7px 10px; border:none; border-radius:999px;
   background:rgba(20,18,50,.55); color:#fff;
@@ -105,6 +105,11 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
 }
 .phase-pill .dot{width:11px; height:11px; border-radius:50%; box-shadow:0 0 6px rgba(255,255,255,.5);}
 .phase-pill .cnt{font-weight:700; font-size:11px; opacity:.72;}
+.phase-pill.dragging{
+  transform:scale(1.1);
+  box-shadow:0 8px 24px rgba(10,8,40,.55), 0 0 0 3px var(--glow);
+  z-index:60;
+}
 
 /* ---------- カード ---------- */
 .card{
@@ -605,7 +610,7 @@ function phaseMetrics(){
   const list = []; let off = 0; let boardH = Math.max(680, innerHeight + 60);
   for (const p of sortedPhases()){
     const cards = liveCards().filter(c => c.phaseId === p.id);
-    let w = 620;
+    let w = p.width ? Math.max(320, p.width) : 620;
     for (const c of cards){
       const cw = estW(c);
       w = Math.max(w, (c.x||0) + cw + 36);
@@ -667,7 +672,7 @@ function renderBoard(){
   }
 
   // フェーズ帯＋ピル
-  for (const m of metrics.list){
+  metrics.list.forEach((m, idx) => {
     const band = el('div','phase-band');
     band.style.left = m.off + 'px'; band.style.width = m.w + 'px';
     board.appendChild(band);
@@ -677,9 +682,9 @@ function renderBoard(){
     pill.appendChild(dot);
     pill.appendChild(el('span', null, m.p.name));
     pill.appendChild(el('span','cnt', String(liveCards().filter(c => c.phaseId === m.p.id).length)));
-    pill.addEventListener('click', () => openPhaseMenu(m.p));
+    attachPillPointer(pill, m, idx);
     board.appendChild(pill);
-  }
+  });
 
   // カード
   for (const c of liveCards()){
@@ -734,6 +739,51 @@ function buildCard(c, m){
 
   attachCardPointer(d, c);
   return d;
+}
+
+/* ---------- フェーズピル：タップ=メニュー／横ドラッグ=境界移動 ---------- */
+function attachPillPointer(pill, m, idx){
+  pill.addEventListener('pointerdown', e => {
+    const startX = e.clientX;
+    const origLeft = parseFloat(pill.style.left);
+    let dragging = false, blocked = false;
+    try { pill.setPointerCapture(e.pointerId); } catch(err){}
+    const onMove = ev => {
+      const dx = ev.clientX - startX;
+      if (!dragging && Math.abs(dx) > 8){
+        if (idx === 0){
+          if (!blocked){ blocked = true; toast('いちばん左の境界は固定だよ'); }
+          return;
+        }
+        dragging = true;
+        pill.classList.add('dragging');
+        if (navigator.vibrate) navigator.vibrate(10);
+      }
+      if (dragging) pill.style.left = (origLeft + dx) + 'px';
+    };
+    const onUp = ev => {
+      pill.removeEventListener('pointermove', onMove);
+      pill.removeEventListener('pointerup', onUp);
+      pill.removeEventListener('pointercancel', onUp);
+      if (dragging){
+        pill.classList.remove('dragging');
+        const dx = ev.clientX - startX;
+        const prev = metrics.list[idx - 1];
+        let minW = 320;
+        for (const c of liveCards().filter(x => x.phaseId === prev.p.id)){
+          minW = Math.max(minW, (c.x||0) + estW(c) + 36);
+        }
+        prev.p.width = Math.round(Math.max(minW, Math.min(prev.w + dx, 4000)));
+        save(); renderBoard();
+        toast('🗺️ 境界を動かした（空の色もついてくる）');
+      } else if (ev.type === 'pointerup' && Math.abs(ev.clientX - startX) <= 8){
+        openPhaseMenu(m.p);
+      }
+    };
+    pill.addEventListener('pointermove', onMove);
+    pill.addEventListener('pointerup', onUp);
+    pill.addEventListener('pointercancel', onUp);
+  });
 }
 
 /* ---------- ポインタ操作（タップ／長押しドラッグ） ---------- */
@@ -1237,6 +1287,16 @@ function openPhaseMenu(p){
   mr.addEventListener('click', () => swap(1));
   mv.appendChild(ml); mv.appendChild(mr);
   sh.appendChild(fld('並べ替え', mv));
+
+  if (p.width){
+    const rw = el('button','btn ghost mini','↔ 幅を自動に戻す');
+    rw.type = 'button';
+    rw.addEventListener('click', () => {
+      delete p.width; save(); close(); renderBoard();
+      toast('↔ 幅を自動に戻した');
+    });
+    sh.appendChild(fld('幅（境界はフェーズ名のドラッグでも動かせる）', rw));
+  }
 
   const add = el('button','btn ghost','＋ 右に新フェーズを追加');
   add.type = 'button';
