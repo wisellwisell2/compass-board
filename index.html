@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
 <style>
 /* ============================================================
    コンパスボード — 朝焼けから星空へ、横スクロールの旅
@@ -147,7 +148,6 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
   box-shadow:0 18px 38px rgba(20,12,60,.35);
   z-index:50; transition:none; opacity:.96;
 }
-.card.locked{opacity:.4; filter:grayscale(.35);}
 .card.kind-dream{
   background:linear-gradient(135deg, rgba(255,255,255,.78), rgba(206,214,255,.5));
   border:1.5px solid rgba(255,255,255,.75);
@@ -341,7 +341,6 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
 .toast.out{transition:opacity .3s, transform .3s; opacity:0; transform:translateY(8px);}
 #fx{position:fixed; inset:0; pointer-events:none; z-index:90; overflow:hidden;}
 .confetti{position:absolute; width:9px; height:13px; border-radius:2px;}
-.fx-emoji{position:absolute; font-size:30px;}
 @keyframes checkPop{
   0%{transform:scale(1);}
   45%{transform:scale(1.75) rotate(10deg);}
@@ -386,15 +385,15 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
 
 <nav id="dock" aria-label="操作バー">
   <button class="dock-btn" id="dkView"><span class="ic">🧭</span><span id="dkViewLbl">コンパス</span></button>
-  <button class="dock-btn primary" id="dkNew"><span class="ic">＋</span><span>新規カード</span></button>
-  <button class="dock-btn" id="dkUnlock"><span class="ic">🔓</span><span>ロック解除</span></button>
-  <button class="dock-btn" id="dkLock"><span class="ic">🔒</span><span>ロック</span></button>
+  <button class="dock-btn" id="dkLoad"><span class="ic">📥</span><span>読み込み</span></button>
+  <button class="dock-btn primary" id="dkSave"><span class="ic">📤</span><span>保存</span></button>
   <button class="dock-btn" id="dkMenu"><span class="ic">⋯</span><span>メニュー</span></button>
 </nav>
 
 <div id="toastWrap"></div>
 <div id="fx"></div>
 <input type="file" id="importFile" accept="application/json,.json" hidden>
+<input type="file" id="importXlsx" accept=".xlsx,.xls" hidden>
 
 <script>
 'use strict';
@@ -412,72 +411,72 @@ const SEED = {
     { id:"ph5", name:"いつかの夢", color:"#2D3561", order:5 }
   ],
   cards: [
-    { id:"c01", kind:"task", phaseId:"ph1", title:"仮住居取得", status:"done", why:"生活基盤", dream:"", unlockNote:"", locked:false, memo:"", subcards:[] },
-    { id:"c02", kind:"task", phaseId:"ph1", title:"健康づくり", status:"doing", why:"体が資本だろ", dream:"全部の土台", unlockNote:"", locked:false, memo:"", subcards:[
+    { id:"c01", kind:"task", phaseId:"ph1", title:"仮住居取得", status:"done", why:"生活基盤", dream:"", unlockNote:"", memo:"", subcards:[] },
+    { id:"c02", kind:"task", phaseId:"ph1", title:"健康づくり", status:"doing", why:"体が資本だろ", dream:"全部の土台", unlockNote:"", memo:"", subcards:[
       { id:"c02s1", title:"睡眠薬", status:"doing" },
       { id:"c02s2", title:"散歩", status:"doing" } ] },
-    { id:"c03", kind:"task", phaseId:"ph1", title:"90万案件取得", status:"doing", why:"手取り増加", dream:"120万案件→法人成りへの一段目", unlockNote:"", locked:false, memo:"候補: 官公庁90万 / 楽天100万 / コンビニ140万", period:"3か月", subcards:[
+    { id:"c03", kind:"task", phaseId:"ph1", title:"90万案件取得", status:"doing", why:"手取り増加", dream:"120万案件→法人成りへの一段目", unlockNote:"", memo:"候補: 官公庁90万 / 楽天100万 / コンビニ140万", period:"3か月", subcards:[
       { id:"c03s1", title:"応募", status:"doing" },
       { id:"c03s2", title:"面談", status:"todo" },
       { id:"c03s3", title:"契約", status:"todo" },
       { id:"c03s4", title:"就労開始", status:"todo" } ] },
-    { id:"c04", kind:"task", phaseId:"ph1", title:"住民票取得", status:"doing", why:"住居秘匿", dream:"", unlockNote:"", locked:false, memo:"", subcards:[
+    { id:"c04", kind:"task", phaseId:"ph1", title:"住民票取得", status:"doing", why:"住居秘匿", dream:"", unlockNote:"", memo:"", subcards:[
       { id:"c04s1", title:"ウイメンズ連絡", status:"doing" },
       { id:"c04s2", title:"ウイメンズ面談", status:"todo" },
       { id:"c04s3", title:"ロック申請", status:"todo" } ] },
-    { id:"c05", kind:"wait", phaseId:"ph1", title:"ロック期間（2か月）", status:"todo", why:"", dream:"", unlockNote:"90万案件の就労開始から2か月", locked:true, memo:"", subcards:[] },
-    { id:"c06", kind:"task", phaseId:"ph1", title:"120万案件取得", status:"todo", why:"手取り増加", dream:"法人成りの直前段", unlockNote:"90万達成して2か月後", locked:true, memo:"", period:"3か月", subcards:[
+    { id:"c05", kind:"wait", phaseId:"ph1", title:"ロック期間（2か月）", status:"todo", why:"", dream:"", unlockNote:"90万案件の就労開始から2か月", memo:"", subcards:[] },
+    { id:"c06", kind:"task", phaseId:"ph1", title:"120万案件取得", status:"todo", why:"手取り増加", dream:"法人成りの直前段", unlockNote:"90万達成して2か月後", memo:"", period:"3か月", subcards:[
       { id:"c06s1", title:"情報収集", status:"todo" },
       { id:"c06s2", title:"交渉", status:"todo" },
       { id:"c06s3", title:"応募", status:"todo" },
       { id:"c06s4", title:"面談", status:"todo" },
       { id:"c06s5", title:"契約", status:"todo" },
       { id:"c06s6", title:"就労開始", status:"todo" } ] },
-    { id:"c07", kind:"task", phaseId:"ph2", title:"法人成り", status:"todo", why:"節税対応", dream:"養育費増額・子供の英語留学が動き出す", unlockNote:"120万案件達成したら", locked:true, memo:"", period:"1.5か月", subcards:[
+    { id:"c07", kind:"task", phaseId:"ph2", title:"法人成り", status:"todo", why:"節税対応", dream:"養育費増額・子供の英語留学が動き出す", unlockNote:"120万案件達成したら", memo:"", period:"1.5か月", subcards:[
       { id:"c07s1", title:"設立準備", status:"todo" },
       { id:"c07s2", title:"設立申請", status:"todo" },
       { id:"c07s3", title:"認可", status:"todo" } ] },
-    { id:"c08", kind:"task", phaseId:"ph2", title:"渋谷7分30万", status:"todo", why:"モテたい", dream:"", unlockNote:"法人成り準備と同時進行で解禁", locked:true, memo:"初期150万・毎月30万", period:"1.5か月", subcards:[
+    { id:"c08", kind:"task", phaseId:"ph2", title:"渋谷7分30万", status:"todo", why:"モテたい", dream:"", unlockNote:"法人成り準備と同時進行で解禁", memo:"初期150万・毎月30万", period:"1.5か月", subcards:[
       { id:"c08s1", title:"不動産確認", status:"todo" },
       { id:"c08s2", title:"申請", status:"todo" },
       { id:"c08s3", title:"引越し準備", status:"todo" },
       { id:"c08s4", title:"引越し", status:"todo" } ] },
-    { id:"c09", kind:"task", phaseId:"ph2", title:"マンジャロ", status:"todo", why:"コンサル対応", dream:"3か月で体脂肪率16%目標", unlockNote:"渋谷30万達成したら", locked:true, memo:"月4万", period:"3か月", subcards:[
+    { id:"c09", kind:"task", phaseId:"ph2", title:"マンジャロ", status:"todo", why:"コンサル対応", dream:"3か月で体脂肪率16%目標", unlockNote:"渋谷30万達成したら", memo:"月4万", period:"3か月", subcards:[
       { id:"c09s1", title:"情報収集", status:"todo" },
       { id:"c09s2", title:"マンジャロ", status:"todo" } ] },
-    { id:"c10", kind:"wait", phaseId:"ph2", title:"ロック期間（2か月）", status:"todo", why:"", dream:"", unlockNote:"マンジャロ開始から2か月", locked:true, memo:"", subcards:[] },
-    { id:"c11", kind:"task", phaseId:"ph2", title:"美容整形", status:"todo", why:"コンサル対応", dream:"", unlockNote:"マンジャロ後", locked:true, memo:"月4万・1回分のみ登録", subcards:[
+    { id:"c10", kind:"wait", phaseId:"ph2", title:"ロック期間（2か月）", status:"todo", why:"", dream:"", unlockNote:"マンジャロ開始から2か月", memo:"", subcards:[] },
+    { id:"c11", kind:"task", phaseId:"ph2", title:"美容整形", status:"todo", why:"コンサル対応", dream:"", unlockNote:"マンジャロ後", memo:"月4万・1回分のみ登録", subcards:[
       { id:"c11s1", title:"情報収集", status:"todo" },
       { id:"c11s2", title:"美容整形", status:"todo" } ] },
-    { id:"c12", kind:"task", phaseId:"ph2", title:"写メ日記生成PJ", status:"todo", why:"商売の種", dream:"NoimosAI研究・別会社設立", unlockNote:"コンサルPJ開始したら", locked:true, memo:"100万くらい？", subcards:[
+    { id:"c12", kind:"task", phaseId:"ph2", title:"写メ日記生成PJ", status:"todo", why:"商売の種", dream:"NoimosAI研究・別会社設立", unlockNote:"コンサルPJ開始したら", memo:"100万くらい？", subcards:[
       { id:"c12s1", title:"製造", status:"todo" },
       { id:"c12s2", title:"開始", status:"todo" },
       { id:"c12s3", title:"怒られるまで実施", status:"todo" } ] },
-    { id:"c13", kind:"task", phaseId:"ph2", title:"風俗嬢コンサルPJ", status:"todo", why:"商売の種", dream:"NoimosAI研究", unlockNote:"美容整形後", locked:true, memo:"100万くらい？", subcards:[
+    { id:"c13", kind:"task", phaseId:"ph2", title:"風俗嬢コンサルPJ", status:"todo", why:"商売の種", dream:"NoimosAI研究", unlockNote:"美容整形後", memo:"100万くらい？", subcards:[
       { id:"c13s1", title:"情報収集", status:"todo" },
       { id:"c13s2", title:"製造", status:"todo" },
       { id:"c13s3", title:"開始", status:"todo" } ] },
-    { id:"c14", kind:"task", phaseId:"ph2", title:"スタンダップコメディアンになる", status:"todo", why:"笑い力試したい", dream:"", unlockNote:"写メ日記案件開始したら", locked:true, memo:"", period:"1か月", subcards:[
+    { id:"c14", kind:"task", phaseId:"ph2", title:"スタンダップコメディアンになる", status:"todo", why:"笑い力試したい", dream:"", unlockNote:"写メ日記案件開始したら", memo:"", period:"1か月", subcards:[
       { id:"c14s1", title:"情報収集", status:"todo" },
       { id:"c14s2", title:"登壇", status:"todo" } ] },
-    { id:"c15", kind:"task", phaseId:"ph2", title:"養育費増額", status:"todo", why:"家族と仲良くしたい", dream:"", unlockNote:"法人成りしたら", locked:true, memo:"毎月10万円", subcards:[] },
-    { id:"c16", kind:"task", phaseId:"ph2", title:"子供の英語留学", status:"todo", why:"子供と仲良くしたい", dream:"アメリカ横断20日の前提", unlockNote:"法人成りしたら", locked:true, memo:"50万？", subcards:[] },
-    { id:"c17", kind:"task", phaseId:"ph3", title:"年商1800万", status:"todo", why:"手取り増加", dream:"AMG・オーロラ・広島支店の解禁条件", unlockNote:"法人成りしたら着手", locked:true, memo:"", subcards:[] },
-    { id:"c18", kind:"task", phaseId:"ph3", title:"デリヘルAI配送PJ", status:"todo", why:"商売の種", dream:"NoimosAI研究・別会社設立", unlockNote:"写メ日記生成PJ終了したら", locked:true, memo:"200万くらい？", subcards:[] },
-    { id:"c19", kind:"task", phaseId:"ph3", title:"ユーザー20万人コミュ作る", status:"todo", why:"商売の種", dream:"ゆるまの土台", unlockNote:"デリヘルAI配送PJ安定後", locked:true, memo:"200万円くらい？", subcards:[] },
-    { id:"c20", kind:"task", phaseId:"ph3", title:"ゆるま（マチアプ）", status:"todo", why:"商売の種", dream:"", unlockNote:"20万人コミュできたら", locked:true, memo:"500万円くらい？", subcards:[] },
-    { id:"c21", kind:"task", phaseId:"ph3", title:"子供とアメリカ横断20日", status:"todo", why:"子供と仲良くしたい", dream:"", unlockNote:"子供の英語力が育ったら", locked:true, memo:"200万？", subcards:[] },
-    { id:"c22", kind:"dream", phaseId:"ph4", title:"AMG GLC63のりたい", status:"todo", why:"モテたい", dream:"", unlockNote:"年商1800万円達成したら", locked:true, memo:"1000万円", subcards:[] },
-    { id:"c23", kind:"dream", phaseId:"ph4", title:"家族でオーロラを見る", status:"todo", why:"家族と仲良くしたい", dream:"", unlockNote:"年商1800万円達成したら", locked:true, memo:"", subcards:[] },
-    { id:"c24", kind:"dream", phaseId:"ph4", title:"広島に「支店」を作って住ませる", status:"todo", why:"納得したい", dream:"家賃収入で楽させる", unlockNote:"金できたら", locked:true, memo:"1億くらい？", subcards:[] },
-    { id:"c25", kind:"dream", phaseId:"ph4", title:"東京タワーが見える場所に住む", status:"todo", why:"納得したい", dream:"たまに赤坂プリンス泊まるでいいかも", unlockNote:"恋人ができたら", locked:true, memo:"200万円くらい？", subcards:[] },
-    { id:"c26", kind:"dream", phaseId:"ph4", title:"高円寺辺りに住んでBMW", status:"todo", why:"納得したい", dream:"渋谷に飽きたら", unlockNote:"恋人ができたら", locked:true, memo:"1000万円くらい？", subcards:[] },
-    { id:"c27", kind:"dream", phaseId:"ph4", title:"火消し要員としての地位", status:"todo", why:"生活安定", dream:"", unlockNote:"個人に飽きたら", locked:true, memo:"", subcards:[] },
-    { id:"c28", kind:"dream", phaseId:"ph4", title:"1500万社員", status:"todo", why:"生活安定", dream:"", unlockNote:"個人に飽きたら", locked:true, memo:"", subcards:[] },
-    { id:"c29", kind:"dream", phaseId:"ph4", title:"顧問的ポジで悠々自適", status:"todo", why:"生活安定", dream:"", unlockNote:"個人に飽きたら", locked:true, memo:"", subcards:[] },
-    { id:"c30", kind:"dream", phaseId:"ph5", title:"小説を書きたい", status:"todo", why:"経験残したい", dream:"", unlockNote:"落ち着いたら", locked:true, memo:"", subcards:[] },
-    { id:"c31", kind:"dream", phaseId:"ph5", title:"北極点を蹴る", status:"todo", why:"「これが北極点か」とつぶやきたい", dream:"", unlockNote:"条件未設定（遠くで光ってろ）", locked:true, memo:"", subcards:[] },
-    { id:"c32", kind:"dream", phaseId:"ph5", title:"MIGで宇宙体験", status:"todo", why:"", dream:"", unlockNote:"条件未設定（遠くで光ってろ）", locked:true, memo:"", subcards:[] }
+    { id:"c15", kind:"task", phaseId:"ph2", title:"養育費増額", status:"todo", why:"家族と仲良くしたい", dream:"", unlockNote:"法人成りしたら", memo:"毎月10万円", subcards:[] },
+    { id:"c16", kind:"task", phaseId:"ph2", title:"子供の英語留学", status:"todo", why:"子供と仲良くしたい", dream:"アメリカ横断20日の前提", unlockNote:"法人成りしたら", memo:"50万？", subcards:[] },
+    { id:"c17", kind:"task", phaseId:"ph3", title:"年商1800万", status:"todo", why:"手取り増加", dream:"AMG・オーロラ・広島支店の解禁条件", unlockNote:"法人成りしたら着手", memo:"", subcards:[] },
+    { id:"c18", kind:"task", phaseId:"ph3", title:"デリヘルAI配送PJ", status:"todo", why:"商売の種", dream:"NoimosAI研究・別会社設立", unlockNote:"写メ日記生成PJ終了したら", memo:"200万くらい？", subcards:[] },
+    { id:"c19", kind:"task", phaseId:"ph3", title:"ユーザー20万人コミュ作る", status:"todo", why:"商売の種", dream:"ゆるまの土台", unlockNote:"デリヘルAI配送PJ安定後", memo:"200万円くらい？", subcards:[] },
+    { id:"c20", kind:"task", phaseId:"ph3", title:"ゆるま（マチアプ）", status:"todo", why:"商売の種", dream:"", unlockNote:"20万人コミュできたら", memo:"500万円くらい？", subcards:[] },
+    { id:"c21", kind:"task", phaseId:"ph3", title:"子供とアメリカ横断20日", status:"todo", why:"子供と仲良くしたい", dream:"", unlockNote:"子供の英語力が育ったら", memo:"200万？", subcards:[] },
+    { id:"c22", kind:"dream", phaseId:"ph4", title:"AMG GLC63のりたい", status:"todo", why:"モテたい", dream:"", unlockNote:"年商1800万円達成したら", memo:"1000万円", subcards:[] },
+    { id:"c23", kind:"dream", phaseId:"ph4", title:"家族でオーロラを見る", status:"todo", why:"家族と仲良くしたい", dream:"", unlockNote:"年商1800万円達成したら", memo:"", subcards:[] },
+    { id:"c24", kind:"dream", phaseId:"ph4", title:"広島に「支店」を作って住ませる", status:"todo", why:"納得したい", dream:"家賃収入で楽させる", unlockNote:"金できたら", memo:"1億くらい？", subcards:[] },
+    { id:"c25", kind:"dream", phaseId:"ph4", title:"東京タワーが見える場所に住む", status:"todo", why:"納得したい", dream:"たまに赤坂プリンス泊まるでいいかも", unlockNote:"恋人ができたら", memo:"200万円くらい？", subcards:[] },
+    { id:"c26", kind:"dream", phaseId:"ph4", title:"高円寺辺りに住んでBMW", status:"todo", why:"納得したい", dream:"渋谷に飽きたら", unlockNote:"恋人ができたら", memo:"1000万円くらい？", subcards:[] },
+    { id:"c27", kind:"dream", phaseId:"ph4", title:"火消し要員としての地位", status:"todo", why:"生活安定", dream:"", unlockNote:"個人に飽きたら", memo:"", subcards:[] },
+    { id:"c28", kind:"dream", phaseId:"ph4", title:"1500万社員", status:"todo", why:"生活安定", dream:"", unlockNote:"個人に飽きたら", memo:"", subcards:[] },
+    { id:"c29", kind:"dream", phaseId:"ph4", title:"顧問的ポジで悠々自適", status:"todo", why:"生活安定", dream:"", unlockNote:"個人に飽きたら", memo:"", subcards:[] },
+    { id:"c30", kind:"dream", phaseId:"ph5", title:"小説を書きたい", status:"todo", why:"経験残したい", dream:"", unlockNote:"落ち着いたら", memo:"", subcards:[] },
+    { id:"c31", kind:"dream", phaseId:"ph5", title:"北極点を蹴る", status:"todo", why:"「これが北極点か」とつぶやきたい", dream:"", unlockNote:"条件未設定（遠くで光ってろ）", memo:"", subcards:[] },
+    { id:"c32", kind:"dream", phaseId:"ph5", title:"MIGで宇宙体験", status:"todo", why:"", dream:"", unlockNote:"条件未設定（遠くで光ってろ）", memo:"", subcards:[] }
   ],
   settings: { lastView: "board" }
 };
@@ -505,7 +504,6 @@ function fillDefaults(c){
   c.memo = c.memo || '';
   c.subcards = c.subcards || [];
   c.subcards.forEach((s, i) => { s.memo = s.memo || ''; s.order = i + 1; });
-  if (c.locked == null) c.locked = false;
   if (c.deletedAt === undefined) c.deletedAt = null;
   c.createdAt = c.createdAt || nowISO();
   c.updatedAt = c.updatedAt || nowISO();
@@ -687,14 +685,13 @@ function buildCard(c, m){
   const d = el('div', 'card kind-' + c.kind);
   d.dataset.id = c.id;
   const st = cardStatus(c);
-  if (c.locked) d.classList.add('locked');
   if (selectedId === c.id) d.classList.add('selected');
   d.style.left = (m.off + (c.x||0)) + 'px';
   d.style.top = (c.y||0) + 'px';
 
   const head = el('div','head');
-  let emoStr = (c.locked ? '🔒' : '') + cardEmoji(c);
-  if (c.kind === 'dream' && c.emoji) emoStr = (c.locked ? '🔒' : '') + '🌙' + c.emoji;
+  let emoStr = cardEmoji(c);
+  if (c.kind === 'dream' && c.emoji) emoStr = '🌙' + c.emoji;
   head.appendChild(el('span','emo', emoStr));
   head.appendChild(el('span','ttl', c.title));
   d.appendChild(head);
@@ -849,15 +846,6 @@ function attachCardPointer(elCard, c){
 
 function handleCardTap(c, ev){
   const subEl = ev.target.closest('.sub');
-  if (c.locked){
-    selectCard(c.id);
-    if (subEl){
-      const s = c.subcards.find(x => x.id === subEl.dataset.sid);
-      if (s){ openSubPopup(c, s); return; }
-    }
-    openLockedPopup(c);
-    return;
-  }
   if (subEl){
     const s = c.subcards.find(x => x.id === subEl.dataset.sid);
     if (s){ selectCard(c.id); openSubPopup(c, s); return; }
@@ -951,7 +939,6 @@ function renderCompass(){
 
   let nowCount = 0;
   for (const c of cards){
-    if (c.locked) continue;
     if (c.subcards.length){
       for (const s of c.subcards){
         if (s.status !== 'doing') continue;
@@ -971,15 +958,15 @@ function renderCompass(){
 
   let laterCount = 0;
   for (const c of cards){
-    if (!(c.locked || c.kind === 'dream')) continue;
+    if (!(c.kind === 'dream' || c.kind === 'wait')) continue;
     const row = el('button','c-row');
-    const emo = c.kind === 'dream' ? '🌙 ' : c.kind === 'wait' ? '⏳ ' : '🔒 ';
+    const emo = c.kind === 'dream' ? '🌙 ' : '⏳ ';
     row.appendChild(el('div','d-ttl', emo + c.title));
     row.appendChild(el('span','d-note', '🔑 ' + (c.unlockNote || '条件未設定')));
     row.addEventListener('click', () => jumpToCard(c.id));
     later.appendChild(row); laterCount++;
   }
-  if (!laterCount) later.appendChild(el('div','c-empty','ロック中のカードはないよ。'));
+  if (!laterCount) later.appendChild(el('div','c-empty','夢・まち時間のカードはないよ。'));
 }
 
 function jumpToCard(id){
@@ -1036,37 +1023,6 @@ function seg(opts, val, on){
     return b;
   });
   return w;
-}
-
-/* ---------- ロック中ポップアップ ---------- */
-function openLockedPopup(c){
-  const { o, close } = overlay(true);
-  const p = el('div','pop');
-  p.appendChild(el('div', null, '')).style.cssText = 'text-align:center;font-size:34px;';
-  p.firstChild.textContent = '🔒';
-  const t = el('div', null, c.title);
-  t.style.cssText = 'text-align:center;font-weight:900;margin:8px 0 4px;font-size:15px;';
-  p.appendChild(t);
-  const lbl = el('div', null, 'いつ解けるか');
-  lbl.style.cssText = 'text-align:center;font-size:10.5px;color:var(--ink-soft);letter-spacing:.1em;margin-bottom:4px;';
-  p.appendChild(lbl);
-  const n = el('div', null, '🔑 ' + (c.unlockNote || '条件未設定'));
-  n.style.cssText = 'text-align:center;font-weight:700;color:var(--accent-deep);font-size:14px;';
-  p.appendChild(n);
-  const hint = el('div', null, '今は考えなくていい。');
-  hint.style.cssText = 'text-align:center;font-size:11.5px;color:var(--ink-soft);margin-top:12px;';
-  p.appendChild(hint);
-  const act = el('div');
-  act.style.cssText = 'display:flex;gap:8px;margin-top:14px;';
-  const dt = el('button','btn ghost mini','📝 詳細をひらく');
-  dt.type = 'button'; dt.style.flex = '1';
-  dt.addEventListener('click', () => { close(); openDetail(c); });
-  const ul = el('button','btn mini','🔓 いま解禁する');
-  ul.type = 'button'; ul.style.flex = '1';
-  ul.addEventListener('click', () => { close(); toggleLock(false); });
-  act.appendChild(dt); act.appendChild(ul);
-  p.appendChild(act);
-  o.appendChild(p);
 }
 
 /* ---------- サブカードポップアップ ---------- */
@@ -1251,7 +1207,7 @@ function openCreate(){
     for (const cc of liveCards().filter(x => x.phaseId === phaseId)) maxY = Math.max(maxY, (cc.y||0) + estH(cc));
     const c = fillDefaults({
       id: uid('c'), kind, title: title.trim(), phaseId,
-      x: 24, y: maxY + 22, status:'todo', locked:false
+      x: 24, y: maxY + 22, status:'todo'
     });
     state.cards.push(c); save();
     close(); renderBoard();
@@ -1345,6 +1301,7 @@ function openMenu(){
   o.appendChild(sh);
 
   const items = [
+    ['✨','＋ 新規カードを追加', () => { close(); openCreate(); }],
     ['📤','データをエクスポート（JSON保存）', () => { close(); exportJSON(); }],
     ['📥','データをインポート（全置換）', () => { close(); $('importFile').click(); }],
     ['🪦','削除済みカード（墓場）', () => { close(); openGraveyard(); }],
@@ -1393,6 +1350,71 @@ $('importFile').addEventListener('change', e => {
   r.readAsText(f);
 });
 
+/* ---------- やりたいことリスト(xlsx)から新規カードを取り込む ---------- */
+$('importXlsx').addEventListener('change', e => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  if (typeof XLSX === 'undefined'){
+    toast('⚠️ いま読み込み機能が使えない（オフラインかも）。電波のある所でもう一度試してね');
+    return;
+  }
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const wb = XLSX.read(r.result, { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+
+      // 「やりたいこと」列がある行をヘッダとして探す
+      let headerIdx = -1, colTitle = -1, colWhy = -1, colBudget = -1, colDep = -1, colPeriod = -1, colMemo = -1;
+      for (let i = 0; i < rows.length; i++){
+        const idx = rows[i].findIndex(v => String(v).trim() === 'やりたいこと');
+        if (idx >= 0){
+          headerIdx = i; colTitle = idx;
+          colWhy = rows[i].findIndex(v => String(v).trim() === 'なぜやりたい');
+          colBudget = rows[i].findIndex(v => String(v).trim() === '予算');
+          colDep = rows[i].findIndex(v => String(v).trim() === '依存関係');
+          colPeriod = rows[i].findIndex(v => String(v).trim() === '期間');
+          colMemo = rows[i].findIndex(v => String(v).trim() === '備考');
+          break;
+        }
+      }
+      if (headerIdx < 0) throw new Error('header not found');
+
+      const known = new Set(state.cards.map(c => (c.title||'').trim()).filter(Boolean));
+      const targetPhase = sortedPhases().at(-1);
+      let maxY = 50;
+      for (const cc of liveCards().filter(x => x.phaseId === targetPhase.id)) maxY = Math.max(maxY, (cc.y||0) + estH(cc));
+
+      let added = 0;
+      for (let i = headerIdx + 1; i < rows.length; i++){
+        const row = rows[i];
+        const title = String(row[colTitle] ?? '').trim();
+        if (!title || known.has(title)) continue;
+        known.add(title);
+        maxY += 22;
+        const c = fillDefaults({
+          id: uid('c'), kind:'task', title, phaseId: targetPhase.id,
+          x: 24, y: maxY, status:'todo',
+          why: colWhy >= 0 ? String(row[colWhy] ?? '').trim() : '',
+          budget: colBudget >= 0 ? String(row[colBudget] ?? '').trim() : '',
+          period: colPeriod >= 0 ? String(row[colPeriod] ?? '').trim() : '',
+          unlockNote: colDep >= 0 ? String(row[colDep] ?? '').trim() : '',
+          memo: colMemo >= 0 ? String(row[colMemo] ?? '').trim() : '',
+        });
+        state.cards.push(c);
+        maxY += estH(c);
+        added++;
+      }
+      if (!added){ toast('📥 新しい行はなかったよ'); return; }
+      save(); renderBoard(); if (view === 'compass') renderCompass();
+      toast(`📥 ${added}件のカードを「${targetPhase.name}」に追加したよ`);
+    } catch(err){ toast('⚠️ 読み込めないファイルだった'); }
+  };
+  r.readAsArrayBuffer(f);
+});
+
 /* ---------- 墓場 ---------- */
 function openGraveyard(){
   const { o, close } = overlay(false);
@@ -1439,42 +1461,12 @@ function openGraveyard(){
   renderList();
 }
 
-/* ---------- ロック／解除 ---------- */
-function toggleLock(toLocked){
-  if (!selectedId){ toast('カードをタップして選んでね'); return; }
-  const c = cardById(selectedId);
-  if (!c) return;
-  if (c.locked === toLocked){ toast(toLocked ? 'もうロック済みだよ' : 'もう解除されてるよ'); return; }
-  c.locked = toLocked; touchCard(c); save();
-  const pos = cardCenter(c.id);
-  renderBoard(); selectCard(c.id);
-  if (!toLocked){
-    fxEmoji('🔓', pos);
-    toast('🔓 解禁！ ' + c.title);
-    if (navigator.vibrate) navigator.vibrate([10, 40, 18]);
-  } else {
-    fxEmoji('🔒', pos);
-    toast('🔒 今は考えなくていい');
-  }
-}
-
 /* ---------- エフェクト ---------- */
 function cardCenter(id){
   const elc = document.querySelector(`.card[data-id="${id}"]`);
   if (!elc) return { x: innerWidth/2, y: innerHeight/2 };
   const r = elc.getBoundingClientRect();
   return { x: r.left + r.width/2, y: r.top + r.height/2 };
-}
-function fxEmoji(ch, pos){
-  if (reduceMotion) return;
-  const e = el('div','fx-emoji', ch);
-  e.style.left = (pos.x - 15) + 'px'; e.style.top = (pos.y - 15) + 'px';
-  $('fx').appendChild(e);
-  e.animate([
-    { transform:'scale(.5) rotate(-12deg)', opacity:1 },
-    { transform:'scale(1.7) rotate(10deg) translateY(-34px)', opacity:1, offset:.55 },
-    { transform:'scale(1.2) rotate(4deg) translateY(-58px)', opacity:0 }
-  ], { duration:400, easing:'cubic-bezier(.34,1.56,.64,1)' }).onfinish = () => e.remove();
 }
 function confettiAt(pos){
   if (reduceMotion) return;
@@ -1506,9 +1498,8 @@ function toast(msg){
 
 /* ---------- ドック ---------- */
 $('dkView').addEventListener('click', () => setView(view === 'board' ? 'compass' : 'board'));
-$('dkNew').addEventListener('click', openCreate);
-$('dkLock').addEventListener('click', () => toggleLock(true));
-$('dkUnlock').addEventListener('click', () => toggleLock(false));
+$('dkSave').addEventListener('click', exportJSON);
+$('dkLoad').addEventListener('click', () => $('importXlsx').click());
 $('dkMenu').addEventListener('click', openMenu);
 
 addEventListener('resize', () => { if (view === 'board') renderBoard(); });
