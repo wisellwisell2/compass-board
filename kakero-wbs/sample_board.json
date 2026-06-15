@@ -1,0 +1,238 @@
+{
+  "schema_version": "kakero.v0.1",
+  "board": {
+    "id": "board_main",
+    "title": "KAKERO Board",
+    "current_phase": "phase_0_5",
+    "monthly_mode": "黄信号・現金化優先",
+    "today_slots": {
+      "attack": ["task_001"],
+      "defense": ["task_003"],
+      "prepare": ["task_005"]
+    }
+  },
+  "nodes": [
+    {
+      "id": "card_001",
+      "type": "card",
+      "title": "体重を落とす",
+      "status": "active",
+      "phase": "phase_0_5",
+      "success": "体重と生活リズムが改善し、無理なく続く状態になっている",
+      "source": "haiku",
+      "metadata": {
+        "display_order": 1
+      }
+    },
+    {
+      "id": "subcard_001",
+      "type": "subcard",
+      "title": "食事を整える",
+      "status": "todo"
+    },
+    {
+      "id": "subcard_002",
+      "type": "subcard",
+      "title": "睡眠を戻す",
+      "status": "todo"
+    },
+    {
+      "id": "subcard_003",
+      "type": "subcard",
+      "title": "歩く・動く",
+      "status": "todo"
+    },
+    {
+      "id": "task_001",
+      "type": "task",
+      "title": "今日の体重を記録する",
+      "status": "todo",
+      "effort": "small",
+      "due_policy": "no_pressure"
+    },
+    {
+      "id": "task_002",
+      "type": "task",
+      "title": "夜に食べるものを1つ軽くする",
+      "status": "todo",
+      "effort": "small",
+      "due_policy": "no_pressure"
+    },
+    {
+      "id": "task_003",
+      "type": "task",
+      "title": "寝る前にスマホを遠くへ置く",
+      "status": "todo",
+      "effort": "small",
+      "due_policy": "no_pressure"
+    },
+    {
+      "id": "task_004",
+      "type": "task",
+      "title": "10分だけ歩く",
+      "status": "todo",
+      "effort": "small",
+      "due_policy": "no_pressure"
+    },
+    {
+      "id": "card_002",
+      "type": "card",
+      "title": "法人化の準備をする",
+      "status": "locked",
+      "phase": "phase_1",
+      "success": "法人化に必要な条件と依存関係が見え、開始判断ができる",
+      "source": "manual",
+      "metadata": {
+        "display_order": 2
+      }
+    },
+    {
+      "id": "task_005",
+      "type": "task",
+      "title": "法人化に必要な前提をメモする",
+      "status": "todo",
+      "effort": "small",
+      "due_policy": "no_pressure"
+    },
+    {
+      "id": "health_life_base",
+      "type": "health_item",
+      "title": "生活基盤"
+    },
+    {
+      "id": "health_body",
+      "type": "health_item",
+      "title": "心身"
+    },
+    {
+      "id": "mem_001",
+      "type": "memory_item",
+      "text": "催促や赤い警告が苦手",
+      "visibility": "ai_context",
+      "pinned": true
+    },
+    {
+      "id": "mem_002",
+      "type": "memory_item",
+      "text": "やりたいことが多すぎると止まりやすい",
+      "visibility": "ai_context",
+      "pinned": true
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_001",
+      "type": "contains",
+      "from": "card_001",
+      "to": "subcard_001"
+    },
+    {
+      "id": "edge_002",
+      "type": "contains",
+      "from": "card_001",
+      "to": "subcard_002"
+    },
+    {
+      "id": "edge_003",
+      "type": "contains",
+      "from": "card_001",
+      "to": "subcard_003"
+    },
+    {
+      "id": "edge_004",
+      "type": "contains",
+      "from": "subcard_001",
+      "to": "task_001"
+    },
+    {
+      "id": "edge_005",
+      "type": "contains",
+      "from": "subcard_001",
+      "to": "task_002"
+    },
+    {
+      "id": "edge_006",
+      "type": "contains",
+      "from": "subcard_002",
+      "to": "task_003"
+    },
+    {
+      "id": "edge_007",
+      "type": "contains",
+      "from": "subcard_003",
+      "to": "task_004"
+    },
+    {
+      "id": "edge_008",
+      "type": "affects",
+      "from": "card_001",
+      "to": "health_body",
+      "weight": 2
+    },
+    {
+      "id": "edge_009",
+      "type": "affects",
+      "from": "card_001",
+      "to": "health_life_base",
+      "weight": 1
+    },
+    {
+      "id": "edge_010",
+      "type": "depends_on",
+      "from": "card_002",
+      "to": "card_001",
+      "note": "生活基盤と案件状況が先に必要"
+    }
+  ],
+  "health_map": {
+    "score": 52,
+    "mode": "黄信号・現金化優先",
+    "lanes": {
+      "life_base": {
+        "label": "生活基盤",
+        "score": 2
+      },
+      "body": {
+        "label": "心身",
+        "score": 1
+      },
+      "work": {
+        "label": "仕事",
+        "score": 2
+      },
+      "money": {
+        "label": "金",
+        "score": 1
+      },
+      "family": {
+        "label": "家族",
+        "score": 0
+      },
+      "time_margin": {
+        "label": "時間余白",
+        "score": -1
+      }
+    },
+    "updated_by": ["card_001"]
+  },
+  "memory_items": [
+    {
+      "id": "mem_001",
+      "text": "催促や赤い警告が苦手",
+      "visibility": "ai_context",
+      "pinned": true
+    },
+    {
+      "id": "mem_002",
+      "text": "やりたいことが多すぎると止まりやすい",
+      "visibility": "ai_context",
+      "pinned": true
+    }
+  ],
+  "metadata": {
+    "created_at": "2026-06-16T00:00:00+09:00",
+    "updated_at": "2026-06-16T00:00:00+09:00",
+    "locale": "ja-JP",
+    "source": "sample"
+  }
+}
