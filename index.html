@@ -1305,6 +1305,7 @@ function openMenu(){
     ['📤','データをエクスポート（JSON保存）', () => { close(); exportJSON(); }],
     ['📥','データをインポート（全置換）', () => { close(); $('importFile').click(); }],
     ['🪦','削除済みカード（墓場）', () => { close(); openGraveyard(); }],
+    ['🗺','WBS攻略マップを見る', () => { close(); window.location.href = './kakero-wbs/index.html'; }],
   ];
   for (const [ic, label, fn] of items){
     const b = el('button','m-item');
