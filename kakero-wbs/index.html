@@ -1,686 +1,1117 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#ff9f43">
-<title>🗺️ KAKERO WBS — すごろくマップ</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗺️</text></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
-<style>
-:root{
-  --ink:#26233f;
-  --ink-soft:#5a567a;
-  --ink-dim:#a39ec2;
-  --paper:#fffdf8;
-  --accent:#ff9f43;
-  --accent-deep:#f0772b;
-  --glow:#ffd166;
-  --line:#efe6d6;
-  --card-shadow:0 2px 5px rgba(38,30,80,.10), 0 8px 22px rgba(38,30,80,.10);
-  --radius:16px;
-  --mono:'JetBrains Mono', ui-monospace, monospace;
-}
-*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-html,body{margin:0;}
-body{
-  font-family:'Zen Maru Gothic','Hiragino Maru Gothic ProN','BIZ UDGothic','Yu Gothic',sans-serif;
-  font-size:14px;
-  color:var(--ink);
-  background:
-    radial-gradient(circle at 12% -8%, rgba(255,209,102,.35), transparent 40%),
-    radial-gradient(circle at 100% 0%, rgba(168,221,240,.30), transparent 45%),
-    #fff8ee;
-  min-height:100vh;
-}
-button,input{font-family:inherit;}
-button{cursor:pointer;}
-:focus-visible{outline:3px solid var(--glow); outline-offset:2px; border-radius:8px;}
-a{color:var(--accent-deep); text-decoration:none;}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KAKERO WBS Dependency View</title>
+  <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="%230f172a"/><path d="M18 45V19h7v10l11-10h10L33 31l14 14H36L25 34v11z" fill="%23f8fafc"/><circle cx="49" cy="15" r="5" fill="%23f59e0b"/></svg>'>
+  <style>
+    :root {
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-300: #cbd5e1;
+      --slate-400: #94a3b8;
+      --slate-500: #64748b;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+      --blue-50: #eff6ff;
+      --blue-100: #dbeafe;
+      --blue-600: #2563eb;
+      --blue-700: #1d4ed8;
+      --emerald-50: #ecfdf5;
+      --emerald-100: #d1fae5;
+      --emerald-700: #047857;
+      --amber-50: #fffbeb;
+      --amber-100: #fef3c7;
+      --amber-700: #b45309;
+      --rose-50: #fff1f2;
+      --rose-100: #ffe4e6;
+      --rose-700: #be123c;
+      --ink: #111827;
+      --gold: #f59e0b;
+      --paper: #fffdf7;
+      --z-base: 1;
+      --z-lines: 2;
+      --z-card: 3;
+      --z-panel: 4;
+    }
 
-/* ---------- ヒーロー ---------- */
-.hero{
-  padding:calc(16px + env(safe-area-inset-top)) 16px 20px;
-  background:linear-gradient(160deg, #ffe6bf 0%, #ffcf9c 45%, #ffb37a 100%);
-  border-radius:0 0 26px 26px;
-  box-shadow:0 6px 24px rgba(240,119,43,.18);
-}
-.hero-top{display:flex; align-items:center; gap:12px;}
-.hero-emblem{
-  width:46px; height:46px; flex:none; border-radius:14px;
-  background:rgba(255,255,255,.55);
-  display:grid; place-items:center; font-size:24px;
-  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.7);
-}
-.hero-text{flex:1; min-width:0;}
-.hero-text h1{margin:0; font-size:18px; font-weight:900; letter-spacing:.02em; color:#3c2a16;}
-.hero-text p{margin:2px 0 0; font-size:11.5px; color:#7a5a36; line-height:1.5;}
-.back-link{
-  flex:none; font-size:11.5px; font-weight:700; color:#7a4316;
-  background:rgba(255,255,255,.6); border-radius:999px; padding:7px 13px;
-  display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
-}
-.back-link:hover{background:rgba(255,255,255,.85);}
+    * { box-sizing: border-box; }
 
-/* すごろくジャーニーバー */
-.journey{margin-top:18px; padding:0 4px;}
-.journey-meta{display:flex; justify-content:space-between; font-size:11px; font-weight:700; color:#7a4316; margin-bottom:8px;}
-.journey-track{position:relative; height:8px; border-radius:999px; background:rgba(255,255,255,.45); margin:0 4px;}
-.journey-fill{position:absolute; inset:0; border-radius:999px; background:linear-gradient(90deg, var(--glow), var(--accent-deep)); width:0%; transition:width .6s cubic-bezier(.2,.8,.2,1);}
-.journey-flag{
-  position:absolute; top:-9px; transform:translateX(-50%);
-  font-size:13px; filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));
-}
-.journey-sun{
-  position:absolute; top:-15px; transform:translateX(-50%); font-size:24px;
-  transition:left .6s cubic-bezier(.2,.8,.2,1);
-  filter:drop-shadow(0 2px 4px rgba(80,40,0,.35));
-}
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      color: var(--slate-900);
+      background: var(--slate-50);
+      font-family: "Yu Gothic UI", "Meiryo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
 
-/* ---------- フィルタバー ---------- */
-.filterbar{
-  position:sticky; top:0; z-index:30;
-  background:rgba(255,248,238,.88);
-  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-  border-bottom:1px solid var(--line);
-  padding:10px 14px;
-}
-.search-box{
-  display:flex; align-items:center; gap:7px;
-  border:1.5px solid var(--line); border-radius:999px; background:#fff;
-  padding:8px 14px; margin-bottom:8px;
-}
-.search-box input{border:none; background:transparent; outline:none; width:100%; font-size:13px; color:var(--ink);}
-.search-box svg{flex:none; opacity:.45;}
-.chip-row{display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
-.chip-row::-webkit-scrollbar{display:none;}
-.chip-row+.chip-row{margin-top:6px;}
-.fchip{
-  flex:none; white-space:nowrap;
-  border:1.5px solid var(--line); border-radius:999px; background:#fff;
-  color:var(--ink-soft); padding:6px 12px; font-size:12px; font-weight:700;
-  transition:all .15s;
-}
-.fchip.on{background:linear-gradient(135deg, var(--accent), var(--accent-deep)); color:#fff; border-color:transparent; box-shadow:0 3px 10px rgba(240,119,43,.35);}
-.fchip:hover:not(.on){border-color:var(--accent); color:var(--accent-deep);}
+    button,
+    input,
+    select {
+      font: inherit;
+    }
 
-/* ---------- レーン（フェーズ） ---------- */
-#board{padding:16px 0 60px;}
-.lane{
-  --lc:#FFE0A3;
-  margin:0 14px 14px;
-  border-radius:20px;
-  background:linear-gradient(135deg, color-mix(in srgb, var(--lc) 26%, #fff), color-mix(in srgb, var(--lc) 12%, #fff));
-  border:1.5px solid color-mix(in srgb, var(--lc) 55%, transparent);
-  padding:13px 0 15px;
-}
-.lane.dark{
-  --lc:#2D3561;
-  background:linear-gradient(135deg, #2D3561, #3a3f7a);
-  border-color:#2D3561;
-}
-.lane-head{display:flex; align-items:center; gap:10px; padding:0 14px;}
-.lane-emoji{
-  width:38px; height:38px; flex:none; border-radius:12px;
-  background:#fff; display:grid; place-items:center; font-size:19px;
-  box-shadow:var(--card-shadow);
-}
-.lane-text{flex:1; min-width:0;}
-.lane-text h2{margin:0; font-size:13.5px; font-weight:900; line-height:1.4;}
-.lane-text p{margin:1px 0 0; font-size:11px; color:var(--ink-soft); line-height:1.5;}
-.lane.dark .lane-text h2{color:#fff;}
-.lane.dark .lane-text p{color:#c8c9ec;}
-.lane-count{
-  flex:none; font-family:var(--mono); font-size:11px; font-weight:700;
-  background:rgba(255,255,255,.7); border-radius:999px; padding:4px 9px; color:var(--ink-soft);
-}
-.lane.dark .lane-count{background:rgba(255,255,255,.16); color:#fff;}
-.lane-bar{height:5px; border-radius:999px; background:rgba(255,255,255,.55); margin:9px 14px 0; overflow:hidden;}
-.lane.dark .lane-bar{background:rgba(255,255,255,.18);}
-.lane-bar i{display:block; height:100%; background:linear-gradient(90deg, var(--glow), var(--accent-deep)); transition:width .5s;}
+    button {
+      cursor: pointer;
+    }
 
-.lane-cards{
-  display:flex; gap:10px; overflow-x:auto; padding:10px 14px 4px;
-  -webkit-overflow-scrolling:touch; scroll-snap-type:x proximity;
-}
-@media (min-width:900px){
-  .lane-cards{flex-wrap:wrap; overflow:visible;}
-  .lane-cards .card{width:236px;}
-}
-.empty-lane{
-  flex:none; border:1.5px dashed var(--line); border-radius:12px; padding:14px 18px;
-  font-size:11.5px; color:var(--ink-dim); background:rgba(255,255,255,.5);
-}
-.lane.dark .empty-lane{border-color:rgba(255,255,255,.25); color:#a9abd6; background:rgba(255,255,255,.06);}
+    .app {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 100dvh;
+    }
 
-/* ---------- カード ---------- */
-.card{
-  position:relative; flex:none; width:200px; scroll-snap-align:start;
-  text-align:left; background:var(--paper); color:var(--ink);
-  border:1.5px solid rgba(255,255,255,.9);
-  border-radius:14px; box-shadow:var(--card-shadow);
-  padding:10px 12px; transition:transform .15s, box-shadow .15s;
-}
-.card:hover{transform:translateY(-2px);}
-.card.done{opacity:.55;}
-.card.done .card-title{text-decoration:line-through; color:var(--ink-dim);}
-.card.selected{box-shadow:0 0 0 3px var(--glow), 0 0 20px 3px rgba(255,209,102,.5), var(--card-shadow); transform:translateY(-2px);}
-.card.related-dep{box-shadow:0 0 0 3px var(--accent), 0 0 16px rgba(240,119,43,.3), var(--card-shadow);}
-.card.related-next{box-shadow:0 0 0 3px #7c9eff, 0 0 16px rgba(124,158,255,.3), var(--card-shadow);}
-.card-top{display:flex; align-items:center; justify-content:space-between; gap:6px;}
-.card-id{font-family:var(--mono); font-size:11px; color:var(--ink-dim); font-weight:700;}
-.card-status{font-size:15px; line-height:1;}
-.card-title{margin-top:4px; font-size:13px; font-weight:900; line-height:1.5;}
-.card-deliv{margin-top:5px; font-size:11px; color:var(--ink-soft); display:flex; gap:5px; align-items:flex-start; line-height:1.5;}
-.card-meta{display:flex; flex-wrap:wrap; gap:5px; margin-top:8px;}
-.tag{
-  display:inline-flex; align-items:center; gap:3px;
-  border-radius:999px; padding:3px 8px; font-size:10px; font-weight:700;
-  background:#f4efe3; color:var(--ink-soft); font-family:var(--mono);
-}
-.tag.kind-決定済み{background:rgba(159,227,192,.45); color:#1f6e4d;}
-.tag.kind-PoC必要{background:rgba(255,224,163,.55); color:#9a6a14;}
-.tag.kind-未確定{background:rgba(240,184,217,.5); color:#a32e6b;}
-.tag.kind-後回し{background:#ecebf3; color:#6a6480;}
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: var(--z-panel);
+      border-bottom: 1px solid var(--slate-200);
+      background: rgba(255, 253, 247, 0.98);
+      padding: 14px 18px;
+    }
 
-/* ---------- 依存ライン ---------- */
-#arrows{position:fixed; inset:0; pointer-events:none; z-index:5; width:100%; height:100%;}
+    .header-main {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
 
-/* ---------- 詳細シート ---------- */
-.scrim{
-  position:fixed; inset:0; background:rgba(40,30,20,.35); z-index:50;
-  backdrop-filter:blur(2px); opacity:0; pointer-events:none; transition:opacity .2s;
-}
-.scrim.show{opacity:1; pointer-events:auto;}
-.sheet{
-  position:fixed; left:0; right:0; bottom:0; z-index:51;
-  max-height:88vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
-  background:var(--paper); border-radius:22px 22px 0 0;
-  padding:10px 18px calc(22px + env(safe-area-inset-bottom));
-  box-shadow:0 -10px 40px rgba(40,30,20,.25);
-  transform:translateY(100%); transition:transform .28s cubic-bezier(.34,1.3,.64,1);
-}
-.sheet.show{transform:translateY(0);}
-.sheet .grab{width:42px; height:5px; border-radius:3px; background:#ecdfca; margin:6px auto 12px;}
-.sheet .sub-id{font-family:var(--mono); font-size:11.5px; color:var(--ink-dim); font-weight:700;}
-.sheet h2{margin:4px 0 0; font-size:17px; font-weight:900; line-height:1.5;}
-.sheet .meta{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 4px;}
-.field{border-top:1px solid var(--line); padding:12px 0;}
-.field-label{display:block; margin-bottom:6px; font-size:10.5px; font-weight:900; letter-spacing:.1em; color:var(--ink-dim); text-transform:uppercase; font-family:var(--mono);}
-.field-value{margin:0; font-size:13px; line-height:1.7; color:var(--ink);}
-.dep-chip{
-  border:1.5px solid var(--line); background:#fff; color:var(--ink);
-  border-radius:10px; padding:6px 11px; font-size:12px; font-weight:700;
-  display:inline-flex; align-items:center; gap:6px; font-family:var(--mono);
-}
-.dep-chip:hover{border-color:var(--accent); color:var(--accent-deep);}
-.dep-chip.blocking{border-color:var(--accent); color:var(--accent-deep); background:rgba(255,224,163,.35);}
-.muted{color:var(--ink-dim); font-size:12px;}
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
 
-/* 完了トグル */
-.toggle-row{
-  display:flex; align-items:center; gap:12px; margin-top:14px;
-  border-top:1px solid var(--line); padding-top:14px; font-size:13.5px; font-weight:900; color:var(--ink);
-}
-.switch{position:relative; width:46px; height:26px; flex:none;}
-.switch input{position:absolute; inset:0; opacity:0; margin:0; cursor:pointer;}
-.switch .track{
-  position:absolute; inset:0; border-radius:999px; background:#ecdfca;
-  transition:background .2s;
-}
-.switch .thumb{
-  position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%;
-  background:#fff; box-shadow:0 2px 4px rgba(0,0,0,.2); transition:transform .2s;
-}
-.switch input:checked + .track{background:linear-gradient(135deg, var(--accent), var(--accent-deep));}
-.switch input:checked + .track + .thumb{transform:translateX(20px);}
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--slate-900);
+      border-radius: 12px;
+      background: var(--ink);
+      color: white;
+      box-shadow: 4px 4px 0 var(--gold);
+      font-size: 21px;
+      font-weight: 900;
+      line-height: 1;
+    }
 
-/* ---------- トースト ---------- */
-#toastWrap{
-  position:fixed; left:0; right:0; bottom:18px;
-  display:flex; flex-direction:column; align-items:center; gap:6px;
-  z-index:100; pointer-events:none;
-}
-.toast{
-  background:#2f2a44; color:#fff; border:none;
-  padding:9px 18px; border-radius:999px; font-size:12.5px; font-weight:700;
-  box-shadow:0 8px 24px rgba(0,0,0,.25);
-  animation:toastIn .25s cubic-bezier(.34,1.56,.64,1);
-}
-@keyframes toastIn{from{transform:translateY(14px) scale(.9); opacity:0;}}
-.toast.out{transition:opacity .3s, transform .3s; opacity:0; transform:translateY(8px);}
+    .title-block h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.25;
+      text-wrap: balance;
+    }
 
-@media print{
-  .filterbar, #toastWrap, .sheet, .scrim, #arrows, .journey{display:none;}
-  body{background:#fff; color:#000;}
-  .lane,.card{border-color:#ccc; background:#fff; box-shadow:none;}
-}
-</style>
+    .title-block p {
+      margin: 4px 0 0;
+      max-width: 880px;
+      color: var(--slate-600);
+      font-size: 13px;
+      line-height: 1.6;
+      text-wrap: pretty;
+    }
+
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .toolbar-btn {
+      border: 1px solid var(--slate-300);
+      border-radius: 8px;
+      background: white;
+      color: var(--slate-700);
+      padding: 8px 10px;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+    }
+
+    .toolbar-btn:hover,
+    .toolbar-btn:focus-visible {
+      border-color: var(--blue-600);
+      outline: 2px solid var(--blue-100);
+      outline-offset: 1px;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr) 340px;
+      gap: 14px;
+      padding: 14px;
+      min-height: 0;
+    }
+
+    .panel {
+      min-width: 0;
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.98);
+    }
+
+    .side {
+      align-self: start;
+      position: sticky;
+      top: 89px;
+      z-index: var(--z-panel);
+      max-height: calc(100dvh - 110px);
+      overflow: auto;
+      padding: 14px;
+    }
+
+    .side h2,
+    .detail h2 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .section {
+      border-top: 1px solid var(--slate-200);
+      margin-top: 14px;
+      padding-top: 14px;
+    }
+
+    .control-label {
+      display: block;
+      margin: 0 0 6px;
+      color: var(--slate-600);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .select,
+    .search {
+      width: 100%;
+      border: 1px solid var(--slate-300);
+      border-radius: 8px;
+      background: white;
+      padding: 9px 10px;
+      color: var(--slate-800);
+      font-size: 13px;
+    }
+
+    .select:focus,
+    .search:focus {
+      border-color: var(--blue-600);
+      outline: 2px solid var(--blue-100);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      border: 1px solid var(--slate-300);
+      border-radius: 999px;
+      background: white;
+      padding: 6px 9px;
+      color: var(--slate-700);
+      font-size: 12px;
+    }
+
+    .chip.active {
+      border-color: var(--blue-600);
+      background: var(--blue-50);
+      color: var(--blue-700);
+      font-weight: 700;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .stat {
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      padding: 10px;
+      background: var(--slate-50);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 20px;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 4px;
+      color: var(--slate-600);
+      font-size: 12px;
+    }
+
+    .quick-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .quick-item {
+      width: 100%;
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      background: var(--slate-50);
+      padding: 8px;
+      text-align: left;
+      color: var(--slate-800);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .quick-item strong {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--slate-900);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .board-wrap {
+      position: relative;
+      min-width: 0;
+      overflow: auto;
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      background: white;
+    }
+
+    .board {
+      position: relative;
+      z-index: var(--z-base);
+      display: grid;
+      grid-template-columns: repeat(7, minmax(235px, 1fr));
+      gap: 10px;
+      min-width: 1680px;
+      padding: 12px;
+    }
+
+    .links {
+      position: absolute;
+      inset: 0;
+      z-index: var(--z-lines);
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .phase {
+      min-width: 0;
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      background: rgba(248, 250, 252, 0.92);
+      padding: 10px;
+    }
+
+    .phase-head {
+      position: sticky;
+      top: 0;
+      z-index: var(--z-card);
+      margin: -10px -10px 10px;
+      border-bottom: 1px solid var(--slate-200);
+      border-radius: 8px 8px 0 0;
+      background: white;
+      padding: 10px;
+    }
+
+    .phase-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .phase-name {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .phase-icon {
+      display: inline-grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      border: 1px solid var(--slate-300);
+      border-radius: 7px;
+      background: var(--paper);
+      color: var(--slate-800);
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    .phase-count {
+      color: var(--slate-500);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .phase-sub {
+      margin: 4px 0 0;
+      color: var(--slate-500);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .cards {
+      display: grid;
+      gap: 8px;
+    }
+
+    .card {
+      position: relative;
+      z-index: var(--z-card);
+      width: 100%;
+      border: 1px solid var(--slate-200);
+      border-left-width: 5px;
+      border-radius: 8px;
+      background: white;
+      padding: 10px;
+      text-align: left;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }
+
+    .card::after {
+      content: "";
+      position: absolute;
+      top: 9px;
+      right: 9px;
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--slate-300);
+    }
+
+    .card[data-kind="決定済み"]::after { background: var(--blue-600); }
+    .card[data-kind="PoC必要"]::after { background: var(--amber-700); }
+    .card[data-kind="未確定"]::after { background: var(--rose-700); }
+
+    .card:hover,
+    .card:focus-visible {
+      border-color: var(--blue-600);
+      outline: 2px solid var(--blue-100);
+      outline-offset: 1px;
+    }
+
+    .card.selected {
+      border-color: var(--blue-600);
+      background: var(--blue-50);
+    }
+
+    .card.dependency {
+      border-color: var(--amber-700);
+      background: var(--amber-50);
+    }
+
+    .card.dependent {
+      border-color: var(--emerald-700);
+      background: var(--emerald-50);
+    }
+
+    .card-id {
+      color: var(--slate-500);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-title {
+      display: block;
+      margin-top: 4px;
+      padding-right: 14px;
+      color: var(--slate-900);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.45;
+      text-wrap: pretty;
+    }
+
+    .card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 8px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 22px;
+      border: 1px solid var(--slate-200);
+      border-radius: 999px;
+      padding: 2px 7px;
+      background: white;
+      color: var(--slate-600);
+      font-size: 11px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .kind-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .badge.done { border-color: var(--emerald-100); background: var(--emerald-50); color: var(--emerald-700); }
+    .badge.ready { border-color: var(--blue-100); background: var(--blue-50); color: var(--blue-700); }
+    .badge.blocked { border-color: var(--rose-100); background: var(--rose-50); color: var(--rose-700); }
+    .badge.open { border-color: var(--amber-100); background: var(--amber-50); color: var(--amber-700); }
+
+    .card[data-kind="決定済み"] { border-left-color: var(--blue-600); }
+    .card[data-kind="PoC必要"] { border-left-color: var(--amber-700); }
+    .card[data-kind="未確定"] { border-left-color: var(--rose-700); }
+    .card[data-kind="後回し"] { border-left-color: var(--slate-500); }
+
+    .detail {
+      align-self: start;
+      position: sticky;
+      top: 89px;
+      z-index: var(--z-panel);
+      max-height: calc(100dvh - 110px);
+      overflow: auto;
+      padding: 14px;
+    }
+
+    .detail-empty {
+      border: 1px dashed var(--slate-300);
+      border-radius: 8px;
+      padding: 14px;
+      color: var(--slate-600);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .detail-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.35;
+      text-wrap: balance;
+    }
+
+    .detail-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 10px 0 14px;
+    }
+
+    .field {
+      border-top: 1px solid var(--slate-200);
+      padding: 10px 0;
+    }
+
+    .field-label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--slate-500);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .field-value {
+      margin: 0;
+      color: var(--slate-800);
+      font-size: 13px;
+      line-height: 1.65;
+      text-wrap: pretty;
+    }
+
+    .dep-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .dep-button {
+      border: 1px solid var(--slate-300);
+      border-radius: 999px;
+      background: white;
+      padding: 5px 8px;
+      color: var(--slate-700);
+      font-size: 12px;
+    }
+
+    .dep-button:hover,
+    .dep-button:focus-visible {
+      border-color: var(--blue-600);
+      outline: 2px solid var(--blue-100);
+      outline-offset: 1px;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      border-top: 1px solid var(--slate-200);
+      padding-top: 12px;
+      color: var(--slate-700);
+      font-size: 13px;
+    }
+
+    .toggle-row input {
+      width: 18px;
+      height: 18px;
+    }
+
+    .muted {
+      color: var(--slate-500);
+    }
+
+    .empty-column {
+      border: 1px dashed var(--slate-300);
+      border-radius: 8px;
+      padding: 10px;
+      color: var(--slate-500);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 1180px) {
+      .shell {
+        grid-template-columns: 260px minmax(0, 1fr);
+      }
+
+      .detail {
+        grid-column: 1 / -1;
+        position: static;
+        max-height: none;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .header-main,
+      .shell {
+        display: block;
+      }
+
+      .header-actions {
+        justify-content: flex-start;
+        margin-top: 10px;
+      }
+
+      .side {
+        position: static;
+        max-height: none;
+        margin-bottom: 12px;
+      }
+
+      .board-wrap {
+        min-height: 60dvh;
+      }
+
+      .detail {
+        margin-top: 12px;
+      }
+    }
+
+    @media print {
+      .header,
+      .side,
+      .detail {
+        position: static;
+      }
+
+      .toolbar-btn,
+      .chip,
+      .select,
+      .search,
+      .toggle-row {
+        display: none;
+      }
+
+      .shell {
+        display: block;
+      }
+
+      .board-wrap {
+        overflow: visible;
+      }
+    }
+  </style>
 </head>
 <body>
-
-<header class="hero">
-  <div class="hero-top">
-    <div class="hero-emblem">🗺️</div>
-    <div class="hero-text">
-      <h1>KAKERO WBS — すごろくマップ</h1>
-      <p>PoC → 商品 walking skeleton → 技術GO / 体験GO / 事業GO 判定までの道のり</p>
-    </div>
-    <a class="back-link" href="../index.html">🧭 コンパスへ</a>
-  </div>
-  <div class="journey">
-    <div class="journey-meta">
-      <span id="journeyLabel"></span>
-      <span id="journeyPct"></span>
-    </div>
-    <div class="journey-track" id="journeyTrack">
-      <div class="journey-fill" id="journeyFill"></div>
-      <div class="journey-sun" id="journeySun">☀️</div>
-    </div>
-  </div>
-</header>
-
-<div class="filterbar">
-  <div class="search-box">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-    <input id="searchInput" type="search" placeholder="検索: Haiku / けんこう / 価格 ...">
-  </div>
-  <div class="chip-row" id="kindChips"></div>
-  <div class="chip-row" id="statusChips"></div>
-</div>
-
-<main id="board"></main>
-
-<svg id="arrows"><defs>
-  <marker id="arrow-dep" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-    <path d="M0,0 L10,5 L0,10 Z" fill="#f0772b"/>
-  </marker>
-  <marker id="arrow-next" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-    <path d="M0,0 L10,5 L0,10 Z" fill="#7c9eff"/>
-  </marker>
-</defs></svg>
-
-<div class="scrim" id="scrim"></div>
-<section class="sheet" id="sheet" aria-hidden="true"><div class="grab"></div><div id="sheetBody"></div></section>
-
-<div id="toastWrap"></div>
-
-<script>
-'use strict';
-
-/* ================= データ ================= */
-const phases = [
-  { id:'0', emoji:'📚', name:'Phase 0', title:'文書・台帳整備',        note:'まず正本と未決を分ける。', color:'#FFE0A3' },
-  { id:'1', emoji:'🦴', name:'Phase 1', title:'データの骨',            note:'KAKERO内部JSONを切る。', color:'#FFC09E' },
-  { id:'2', emoji:'🤖', name:'Phase 2', title:'Haikuカード化PoC',      note:'きこうか君の脳を検証する。', color:'#A8DDF0' },
-  { id:'3', emoji:'🧭', name:'Phase 3', title:'人生コンパス反映PoC',   note:'盤面に出す。', color:'#9FE3C0' },
-  { id:'4', emoji:'🩺', name:'Phase 4', title:'けんこうマップ反映PoC',  note:'ToDo以上の意味を出す。', color:'#C9B8F0' },
-  { id:'5', emoji:'🚀', name:'Phase 5', title:'商品 walking skeleton', note:'最低限遊べる商品状態。', color:'#B8C4F0' },
-  { id:'6', emoji:'🏁', name:'Phase 6', title:'GO判定',                note:'技術・体験・事業を分けて判定する。', color:'#2D3561', dark:true },
-];
-
-const tasks = [
-  ['0.1','0','決定済み','決定ログを作る','DECISION_LOG.md',[], '最新優先ルール、決定済み、前提、判断日が記録されている','0.5'],
-  ['0.2','0','決定済み','未決事項台帳を作る','OPEN_QUESTIONS.md',[], '事業判断・価格・仕様未確定がカテゴリ別に整理されている','0.5'],
-  ['0.3','0','決定済み','却下案台帳を作る','REJECTED_IDEAS.md',[], 'walking skeleton外、却下、将来再検討の区別がある','0.5'],
-  ['0.4','0','決定済み','WBSを確定する','WBS.md',['0.1','0.2','0.3'], '決定済み/未確定/PoC必要/後回しが分離され、各タスクに成果物・依存・完了条件がある','1'],
-  ['0.5','0','決定済み','既存資料を開発用正本へ分解する','開発用ドキュメント一覧',['0.1'], 'PRD/要件/基本設計/PoC計画/WS仕様へ分ける対象が明確','1-2'],
-  ['1.1','1','PoC必要','KAKERO内部スキーマ v0.1 を定義する','KAKERO_DATA_v0.1.md',['0.4'], 'nodes, edges, health_map, memory_items, metadata の役割が定義されている','1-2'],
-  ['1.2','1','PoC必要','サンプル盤面データを作る','sample_board.json',['1.1'], '10カード前後、サブカード、小タスク、依存、状態、記憶項目、けんこうマップが入っている','1'],
-  ['1.3','1','PoC必要','Haiku出力サンプルを作る','sample_haiku_output.json',['1.1'], '6フィールド出力と内部スキーマ変換後の形が対応している','0.5-1'],
-  ['1.4','1','PoC必要','盤面をAIへ渡す入力形式を決める','AI入力ペイロード仕様',['1.1'], '会話ログなしで、既存カード・マップ値・記憶項目を渡せる','1'],
-  ['2.1','2','PoC必要','API中継の最小構成を作る','Haiku中継PoC',['1.3'], '1発話1コール、履歴なし、temperature低めで呼べる','1-2'],
-  ['2.2','2','PoC必要','6フィールドJSON出力を検証する','カード化テスト結果',['2.1'], '願望系テスト発話が card/subcards/tasks/premises/dependencies/success に分解される','1-2'],
-  ['2.3','2','PoC必要','脱線拒否を検証する','脱線テスト結果',['2.1'], '雑談・天気・愚痴・きこうか君への話しかけを イマソノハナシヲシテマセン で弾ける','0.5-1'],
-  ['2.4','2','PoC必要','複数願望混在入力を検証する','混在入力テスト結果',['2.1'], '金欲しい、モテたい、引っ越したいを中心カード+関連要素へ畳める','0.5'],
-  ['2.5','2','PoC必要','内部スキーマへの変換を検証する','変換PoC',['2.2','2.3','2.4'], 'Haiku出力が nodes/edges/metadata に破綻なく入る','1-2'],
-  ['2.6','2','PoC必要','Haiku採用/上位モデル再判定を行う','技術判定メモ',['2.2','2.3','2.4','2.5'], 'Haiku継続、プロンプト修正、Sonnet再検証のいずれかが判断できる','0.5'],
-  ['3.1','3','PoC必要','既存 compass-board ソースを調査する','調査メモ',['0.4'], '技術構成、表示構造、流用可否、改修ポイントが分かる','1-2'],
-  ['3.2','3','PoC必要','KAKEROデータをコンパス表示へ流し込む','コンパス反映PoC',['1.2','3.1'], 'sample_board のカードが画面に表示される','2-4'],
-  ['3.3','3','PoC必要','10カード表示を検証する','10カード表示PoC',['3.2'], '10個前後並べても人生コンパスっぽい俯瞰が崩れない','1-2'],
-  ['3.4','3','PoC必要','状態表示ルールを反映する','状態表示PoC',['3.2'], '未着手/実行中/完了/大達成/未解放/待機/メモあり等を識別できる','1-2'],
-  ['3.5','3','PoC必要','手編集PoCを作る','編集PoC',['3.2'], 'カードの編集、移動、削除、状態変更ができる','2-4'],
-  ['3.6','3','PoC必要','編集結果を盤面に保存/復元する','保存復元PoC',['3.5'], 'リロード後も編集結果が残る。保存方式は作りやすさ優先で仮置き','1-2'],
-  ['4.1','4','PoC必要','けんこうマップの最小データ構造を定義する','health_map仕様',['1.1'], '生活/仕事/心身/金/家族/余白などの反映先が定義されている','1-2'],
-  ['4.2','4','PoC必要','カードからけんこうマップへ反映する','けんこう反映PoC',['2.5','4.1'], 'カード追加でマップ項目・総合点・今月モード候補が変化する','2-4'],
-  ['4.3','4','PoC必要','単なるToDo化していないか検証する','体験レビュー結果',['4.2'], 'カードとマップの関係が意味ある状態変化として見える','1'],
-  ['4.4','4','未確定','初期自動反映精度を調整する','調整方針メモ',['4.2','OQ'], '自動反映の深さをWSで必要な最低限に抑えられている','1-2'],
-  ['5.1','5','決定済み','LP/入口を作る','入口画面',['3.2'], 'KAKEROが何か、初回体験へ進めることが分かる','2-4'],
-  ['5.2','5','未確定','LPコピーを仮置きする','仮コピー',['5.1','OQ'], '最終コピーを確定せず、検証用文言で入口が成立する','0.5-1'],
-  ['5.3','5','決定済み','プラン/価格ページを作る','プラン/価格ページ',['5.1'], '本番決済なしで、有料エンジンの価値と無料範囲が説明されている','1-2'],
-  ['5.4','5','決定済み','きこうか君チュートリアルを作る','チュートリアル導線',['2.5','5.1'], 'ヤア、ワタシガキコウカクンデス から願望入力へ進める','2-4'],
-  ['5.5','5','PoC必要','10カード登録体験を通す','初回登録フロー',['5.4','3.3','4.2'], '初回体験で5-10カードを登録し、盤面化できる','3-5'],
-  ['5.6','5','決定済み','覚えてほしいことリストを作る','memory_items UI',['1.1','5.4'], '10-20個程度の記憶項目を追加/編集でき、AI入力に含められる','2-4'],
-  ['5.7','5','PoC必要','次回きこうか君が盤面を理解するループを作る','盤面理解PoC',['1.4','3.6','5.6'], '会話履歴なしで、既存盤面を踏まえたカード化/修正ができる','2-4'],
-  ['5.8','5','未確定','今日の9タスク導線を仮実装する','今日タスク仮画面',['3.6','4.2','OQ'], '自動生成ロジック未確定のため、仮選定または手動選択で体験確認できる','2-4'],
-  ['5.9','5','決定済み','WS統合テストを行う','WSテスト結果',['5.1','5.2','5.3','5.4','5.5','5.6','5.7','5.8'], '入口 -> チュートリアル -> カード化 -> コンパス/けんこう反映 -> 手編集 -> 再読込 が通る','2-3'],
-  ['6.1','6','PoC必要','技術GOを判定する','技術GO判定メモ',['5.9'], 'Haiku、盤面、編集、保存、けんこう反映が通る/通らないを判断できる','1'],
-  ['6.2','6','PoC必要','体験GOを判定する','体験GO判定メモ',['5.9'], '10カード前後で、こうなるのね、が出るかを判断できる','1-2'],
-  ['6.3','6','未確定','事業GOを判定する','事業GO判定メモ',['5.1','5.3','5.5','OQ'], 'ICP/価格/継続/集客/粗利の未決を明示したうえで次判断に進める','1-2'],
-  ['6.4','6','決定済み','次フェーズ計画を作る','次フェーズWBS',['6.1','6.2','6.3'], '本実装へ進む/PoC追加/事業検証優先/保留のいずれかが明確','1'],
-].map(([id, phase, kind, title, deliverable, deps, done, effort]) => ({ id, phase, kind, title, deliverable, deps, done, effort }));
-
-const openQuestionNote = '未確定（OPEN_QUESTIONS）: 価格・プラン / 体験・仕様 / データ・保存 / 事業GO のいずれかが先に決まる必要があるタスク。';
-
-const KIND_META = {
-  '決定済み': { emoji:'✅' },
-  'PoC必要':  { emoji:'🧪' },
-  '未確定':   { emoji:'❓' },
-  '後回し':   { emoji:'⏸️' },
-};
-const STATUS_META = {
-  done:    { emoji:'✅', label:'完了' },
-  ready:   { emoji:'🔥', label:'今やれる' },
-  blocked: { emoji:'🌙', label:'待機中' },
-  open:    { emoji:'❓', label:'未決あり' },
-};
-
-/* ================= 状態 ================= */
-const doneKey = 'kakero-wbs-done-v3';
-const initialDone = ['0.1','0.2','0.3','0.4'];
-const taskMap = new Map(tasks.map(t => [t.id, t]));
-let doneIds = new Set(JSON.parse(localStorage.getItem(doneKey) || 'null') || initialDone);
-let searchText = '';
-let kindFilter = 'all';
-let statusFilter = 'all';
-let selectedId = null;
-
-function depIds(t){ return t.deps.filter(d => taskMap.has(d)); }
-function hasOpenDep(t){ return t.kind === '未確定' || t.deps.includes('OQ'); }
-function blockers(t){ return depIds(t).filter(d => !doneIds.has(d)); }
-function statusOf(t){
-  if (doneIds.has(t.id)) return 'done';
-  if (hasOpenDep(t)) return 'open';
-  return blockers(t).length === 0 ? 'ready' : 'blocked';
-}
-function downstream(id){ return tasks.filter(t => depIds(t).includes(id)).map(t => t.id); }
-function matches(t){
-  const status = statusOf(t);
-  const text = [t.id, t.title, t.kind, t.deliverable, t.done, t.effort].join(' ').toLowerCase();
-  if (searchText && !text.includes(searchText.toLowerCase())) return false;
-  if (kindFilter !== 'all' && t.kind !== kindFilter) return false;
-  if (statusFilter !== 'all' && status !== statusFilter) return false;
-  return true;
-}
-function esc(v){
-  return String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
-}
-function el(tag, cls, text){
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  if (text != null) n.textContent = text;
-  return n;
-}
-
-/* ================= ジャーニーバー ================= */
-function renderJourney(){
-  const total = tasks.length;
-  const done = tasks.filter(t => statusOf(t) === 'done').length;
-  const pct = total ? Math.round(done / total * 100) : 0;
-  document.getElementById('journeyLabel').textContent = `すごろく進行: 全${total}マス`;
-  document.getElementById('journeyPct').textContent = `${done} / ${total} マス踏破 (${pct}%)`;
-  document.getElementById('journeyFill').style.width = pct + '%';
-  document.getElementById('journeySun').style.left = pct + '%';
-
-  const track = document.getElementById('journeyTrack');
-  track.querySelectorAll('.journey-flag').forEach(n => n.remove());
-  let cum = 0;
-  phases.forEach(p => {
-    cum += tasks.filter(t => t.phase === p.id).length;
-    const flag = el('span','journey-flag', p.emoji);
-    flag.style.left = (cum / total * 100) + '%';
-    track.appendChild(flag);
-  });
-}
-
-/* ================= フィルタ ================= */
-const kindChips = document.getElementById('kindChips');
-const statusChips = document.getElementById('statusChips');
-
-function renderFilters(){
-  const kinds = ['決定済み','PoC必要','未確定','後回し'].filter(k => tasks.some(t => t.kind === k));
-  const kindCounts = { all: tasks.length };
-  kinds.forEach(k => kindCounts[k] = tasks.filter(t => t.kind === k).length);
-  kindChips.innerHTML = ['all', ...kinds].map(k => {
-    const label = k === 'all' ? `すべて (${kindCounts.all})` : `${KIND_META[k].emoji} ${k} (${kindCounts[k]})`;
-    return `<button class="fchip ${kindFilter===k?'on':''}" data-kind="${k}" type="button">${label}</button>`;
-  }).join('');
-  kindChips.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { kindFilter = b.dataset.kind; render(); }));
-
-  const statuses = ['ready','open','blocked','done'];
-  const statusCounts = { all: tasks.length };
-  statuses.forEach(s => statusCounts[s] = tasks.filter(t => statusOf(t) === s).length);
-  statusChips.innerHTML = ['all', ...statuses].map(s => {
-    const label = s === 'all' ? `進行: すべて` : `${STATUS_META[s].emoji} ${STATUS_META[s].label} (${statusCounts[s]})`;
-    return `<button class="fchip ${statusFilter===s?'on':''}" data-status="${s}" type="button">${label}</button>`;
-  }).join('');
-  statusChips.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { statusFilter = b.dataset.status; render(); }));
-}
-
-/* ================= ボード ================= */
-const board = document.getElementById('board');
-
-function cardHtml(t){
-  const status = statusOf(t);
-  const classes = ['card'];
-  if (status === 'done') classes.push('done');
-  if (t.id === selectedId) classes.push('selected');
-  else if (selectedId){
-    const sel = taskMap.get(selectedId);
-    if (sel){
-      if (depIds(sel).includes(t.id)) classes.push('related-dep');
-      else if (downstream(sel.id).includes(t.id)) classes.push('related-next');
-    }
-  }
-  return `<button class="${classes.join(' ')}" type="button" data-task="${t.id}">
-    <div class="card-top"><span class="card-id">${t.id}</span><span class="card-status">${STATUS_META[status].emoji}</span></div>
-    <div class="card-title">${esc(t.title)}</div>
-    <div class="card-deliv">📄 ${esc(t.deliverable)}</div>
-    <div class="card-meta">
-      <span class="tag kind-${esc(t.kind)}">${KIND_META[t.kind].emoji} ${esc(t.kind)}</span>
-      <span class="tag">⏳ ${esc(t.effort)}人日</span>
-    </div>
-  </button>`;
-}
-
-function renderBoard(){
-  board.innerHTML = phases.map(phase => {
-    const laneTasks = tasks.filter(t => t.phase === phase.id);
-    const done = laneTasks.filter(t => statusOf(t) === 'done').length;
-    const visible = laneTasks.filter(matches);
-    return `<section class="lane ${phase.dark ? 'dark' : ''}" style="--lc:${phase.color}" data-phase="${phase.id}">
-      <div class="lane-head">
-        <span class="lane-emoji">${phase.emoji}</span>
-        <div class="lane-text">
-          <h2>${esc(phase.name)} ・ ${esc(phase.title)}</h2>
-          <p>${esc(phase.note)}</p>
+  <div class="app">
+    <header class="header">
+      <div class="header-main">
+        <div class="brand-row">
+          <div class="brand-mark" aria-hidden="true">K</div>
+          <div class="title-block">
+            <h1>KAKERO WBS 依存ビュー</h1>
+            <p>「ここが未決だから止まる」「これは依存が終われば進められる」を見るための攻略マップ。完了チェックはこのHTMLのlocalStorageだけに保存されます。</p>
+          </div>
         </div>
-        <span class="lane-count">${done}/${laneTasks.length}</span>
+        <div class="header-actions">
+          <button class="toolbar-btn" id="fitButton" type="button"><span aria-hidden="true">□</span><span>全体表示</span></button>
+          <button class="toolbar-btn" id="resetButton" type="button"><span aria-hidden="true">↺</span><span>完了状態リセット</span></button>
+          <button class="toolbar-btn" type="button" onclick="window.print()"><span aria-hidden="true">↓</span><span>印刷</span></button>
+        </div>
       </div>
-      <div class="lane-bar"><i style="width:${laneTasks.length ? Math.round(done/laneTasks.length*100) : 0}%"></i></div>
-      <div class="lane-cards">
-        ${visible.length ? visible.map(cardHtml).join('') : `<div class="empty-lane">条件に合うマスなし</div>`}
-      </div>
-    </section>`;
-  }).join('');
+    </header>
 
-  board.querySelectorAll('[data-task]').forEach(btn => {
-    btn.addEventListener('click', () => openDetail(btn.dataset.task));
-  });
-}
+    <main class="shell">
+      <aside class="panel side" aria-label="WBS filters and quick navigation">
+        <h2>絞り込み</h2>
+        <label class="control-label" for="searchInput">検索</label>
+        <input class="search" id="searchInput" type="search" placeholder="例: Haiku / けんこう / 価格">
 
-function render(){
-  renderJourney();
-  renderFilters();
-  renderBoard();
-  if (selectedId) requestAnimationFrame(drawArrows);
-}
+        <div class="section">
+          <span class="control-label">分類</span>
+          <div class="chips" id="kindChips"></div>
+        </div>
 
-/* ================= 依存ライン ================= */
-const arrowsSvg = document.getElementById('arrows');
+        <div class="section">
+          <label class="control-label" for="statusSelect">進行状態</label>
+          <select class="select" id="statusSelect">
+            <option value="all">すべて</option>
+            <option value="ready">今進められる</option>
+            <option value="blocked">依存待ち</option>
+            <option value="open">未決あり</option>
+            <option value="done">完了済み</option>
+          </select>
+        </div>
 
-function drawArrows(){
-  arrowsSvg.querySelectorAll('path.edge').forEach(n => n.remove());
-  if (!selectedId) return;
-  const t = taskMap.get(selectedId);
-  if (!t) return;
-  depIds(t).forEach(d => drawEdge(d, t.id, 'dep'));
-  downstream(t.id).forEach(n => drawEdge(t.id, n, 'next'));
-}
-function drawEdge(fromId, toId, type){
-  const a = document.querySelector(`[data-task="${CSS.escape(fromId)}"]`);
-  const b = document.querySelector(`[data-task="${CSS.escape(toId)}"]`);
-  if (!a || !b) return;
-  const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
-  if (ra.bottom < -40 || ra.top > innerHeight + 40 || rb.bottom < -40 || rb.top > innerHeight + 40) return;
-  const x1 = ra.right, y1 = ra.top + ra.height/2;
-  const x2 = rb.left, y2 = rb.top + rb.height/2;
-  const dx = Math.max(40, Math.abs(x2 - x1) / 2);
-  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-  path.setAttribute('class', 'edge');
-  path.setAttribute('d', `M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`);
-  path.setAttribute('fill', 'none');
-  path.setAttribute('stroke', type === 'dep' ? '#f0772b' : '#7c9eff');
-  path.setAttribute('stroke-width', '2.5');
-  path.setAttribute('stroke-dasharray', type === 'dep' ? '0' : '6 5');
-  path.setAttribute('opacity', '0.85');
-  path.setAttribute('marker-end', type === 'dep' ? 'url(#arrow-dep)' : 'url(#arrow-next)');
-  arrowsSvg.appendChild(path);
-}
-let redrawTick = false;
-function scheduleRedraw(){
-  if (!selectedId || redrawTick) return;
-  redrawTick = true;
-  requestAnimationFrame(() => { drawArrows(); redrawTick = false; });
-}
-window.addEventListener('scroll', scheduleRedraw, { passive:true });
-window.addEventListener('resize', scheduleRedraw);
-document.addEventListener('scroll', e => { if (e.target !== document) scheduleRedraw(); }, { passive:true, capture:true });
+        <div class="section">
+          <h2>サマリー</h2>
+          <div class="stats" id="stats"></div>
+        </div>
 
-/* ================= 詳細シート ================= */
-const scrim = document.getElementById('scrim');
-const sheet = document.getElementById('sheet');
-const sheetBody = document.getElementById('sheetBody');
+        <div class="section">
+          <h2>今進められる</h2>
+          <div class="quick-list" id="readyList"></div>
+        </div>
 
-function closeDetail(){
-  scrim.classList.remove('show');
-  sheet.classList.remove('show');
-  sheet.setAttribute('aria-hidden','true');
-  selectedId = null;
-  arrowsSvg.querySelectorAll('path.edge').forEach(n => n.remove());
-  renderBoard();
-}
+        <div class="section">
+          <h2>未決で止まりやすい</h2>
+          <div class="quick-list" id="openList"></div>
+        </div>
+      </aside>
 
-function depChip(id, blocking){
-  const t = taskMap.get(id);
-  const label = t ? `${id} ${t.title}` : id;
-  return `<button class="dep-chip ${blocking ? 'blocking' : ''}" type="button" data-jump="${id}">${esc(label)}</button>`;
-}
+      <section class="board-wrap" id="boardWrap" aria-label="WBS dependency board">
+        <svg class="links" id="links" aria-hidden="true"></svg>
+        <div class="board" id="board"></div>
+      </section>
 
-function openDetail(id){
-  const t = taskMap.get(id);
-  if (!t) return;
-  selectedId = id;
-  renderBoard();
+      <aside class="panel detail" id="detail" aria-label="Task detail">
+        <h2>詳細</h2>
+        <div class="detail-empty">カードを選ぶと、成果物・依存関係・完了条件・後続タスクがここに出ます。</div>
+      </aside>
+    </main>
+  </div>
 
-  const status = statusOf(t);
-  const deps = depIds(t);
-  const hasOQ = t.deps.includes('OQ');
-  const next = downstream(t.id);
-  const blockingNow = blockers(t);
+  <script>
+    const phases = [
+      { id: '0', icon: '§', name: 'Phase 0', title: '文書・台帳整備', note: 'まず正本と未決を分ける' },
+      { id: '1', icon: '◇', name: 'Phase 1', title: 'データの骨', note: 'KAKERO内部JSONを切る' },
+      { id: '2', icon: 'K', name: 'Phase 2', title: 'Haikuカード化PoC', note: 'きこうか君の脳を検証' },
+      { id: '3', icon: '→', name: 'Phase 3', title: '人生コンパス反映PoC', note: '盤面に出す' },
+      { id: '4', icon: '+', name: 'Phase 4', title: 'けんこうマップ反映PoC', note: 'ToDo以上の意味を出す' },
+      { id: '5', icon: '★', name: 'Phase 5', title: '商品walking skeleton', note: '最低限遊べる商品状態' },
+      { id: '6', icon: '✓', name: 'Phase 6', title: 'GO判定', note: '技術・体験・事業を分けて判定' }
+    ];
 
-  sheetBody.innerHTML = '';
+    const tasks = [
+      ['0.1','0','決定済み','決定ログを作る','DECISION_LOG.md',['なし'],'最新優先ルール、決定済み、前提、判断日が記録されている','0.5'],
+      ['0.2','0','決定済み','未決事項台帳を作る','OPEN_QUESTIONS.md',['なし'],'事業判断・価格・仕様未確定がカテゴリ別に整理されている','0.5'],
+      ['0.3','0','決定済み','却下案台帳を作る','REJECTED_IDEAS.md',['なし'],'walking skeleton外、却下、将来再検討の区別がある','0.5'],
+      ['0.4','0','決定済み','WBSを確定する','WBS.md',['0.1','0.2','0.3'],'決定済み/未確定/PoC必要/後回しが分離され、各タスクに成果物・依存・完了条件がある','1'],
+      ['0.5','0','決定済み','既存資料を開発用正本へ分解する','開発用ドキュメント一覧',['0.1'],'PRD/要件/基本設計/PoC計画/WS仕様へ分ける対象が明確','1-2'],
+      ['0.6','0','決定済み','KAKERO原則を明文化する','KAKERO_PRINCIPLES.md',['0.1','0.2'],'遊びレイヤー、Goodhart回避、価格バーベル、人生データ非人質化が短く確認できる','1'],
+      ['1.1','1','PoC必要','KAKERO内部スキーマ v0.1 を定義する','KAKERO_DATA_v0.1.md',['0.4'],'nodes, edges, health_map, memory_items, metadata の役割が定義されている','1-2'],
+      ['1.2','1','PoC必要','サンプル盤面データを作る','sample_board.json',['1.1'],'10カード前後、サブカード、小タスク、依存、状態、記憶項目、けんこうマップが入っている','1'],
+      ['1.3','1','PoC必要','Haiku出力サンプルを作る','sample_haiku_output.json',['1.1'],'6フィールド出力と内部スキーマ変換後の形が対応している','0.5-1'],
+      ['1.4','1','PoC必要','盤面をAIへ渡す入力形式を決める','AI入力ペイロード仕様',['1.1'],'会話ログなしで、既存カード・マップ値・記憶項目を渡せる','1'],
+      ['2.1','2','PoC必要','API中継の最小構成を作る','Haiku中継PoC',['1.3'],'1発話1コール、履歴なし、temperature低めで呼べる','1-2'],
+      ['2.2','2','PoC必要','6フィールドJSON出力を検証する','カード化テスト結果',['2.1'],'願望系テスト発話が card/subcards/tasks/premises/dependencies/success に分解される','1-2'],
+      ['2.3','2','PoC必要','脱線拒否を検証する','脱線テスト結果',['2.1'],'雑談・天気・愚痴・きこうか君への話しかけを イマソノハナシヲシテマセン で弾ける','0.5-1'],
+      ['2.4','2','PoC必要','複数願望混在入力を検証する','混在入力テスト結果',['2.1'],'「金欲しい、モテたい、引っ越したい」を中心カード+関連要素へ畳める','0.5'],
+      ['2.5','2','PoC必要','内部スキーマへの変換を検証する','変換PoC',['2.2','2.3','2.4'],'Haiku出力が nodes/edges/metadata に破綻なく入る','1-2'],
+      ['2.6','2','PoC必要','Haiku採用/上位モデル再判定を行う','技術判定メモ',['2.2','2.3','2.4','2.5'],'Haiku継続、プロンプト修正、Sonnet再検証のいずれかが判断できる','0.5'],
+      ['3.1','3','PoC必要','既存 compass-board ソースを調査する','調査メモ',['0.4'],'技術構成、表示構造、流用可否、改修ポイントが分かる','1-2'],
+      ['3.2','3','PoC必要','KAKEROデータをコンパス表示へ流し込む','コンパス反映PoC',['1.2','3.1'],'sample_board のカードが画面に表示される','2-4'],
+      ['3.3','3','PoC必要','10カード表示を検証する','10カード表示PoC',['3.2'],'10個前後並べても「人生コンパスっぽい」俯瞰が崩れない','1-2'],
+      ['3.4','3','PoC必要','状態表示ルールを反映する','状態表示PoC',['3.2'],'未着手/実行中/完了/大達成/未解放/待機/メモあり等を識別できる','1-2'],
+      ['3.5','3','PoC必要','手編集PoCを作る','編集PoC',['3.2'],'カードの編集、移動、削除、状態変更ができる','2-4'],
+      ['3.6','3','PoC必要','編集結果を盤面に保存/復元する','保存復元PoC',['3.5'],'リロード後も編集結果が残る。保存方式は作りやすさ優先で仮置き','1-2'],
+      ['4.1','4','PoC必要','けんこうマップの最小データ構造を定義する','health_map仕様',['1.1'],'生活/仕事/心身/金/家族/余白などの反映先が定義されている','1-2'],
+      ['4.2','4','PoC必要','カードからけんこうマップへ反映する','けんこう反映PoC',['2.5','4.1'],'カード追加でマップ項目・総合点・今月モード候補が変化する','2-4'],
+      ['4.3','4','PoC必要','単なるToDo化していないか検証する','体験レビュー結果',['4.2'],'カードとマップの関係が意味ある状態変化として見える','1'],
+      ['4.4','4','未確定','初期自動反映精度を調整する','調整方針メモ',['4.2','OQ'],'自動反映の深さを「WSで必要な最低限」に抑えられている','1-2'],
+      ['5.1','5','決定済み','LP/入口を作る','入口画面',['3.2'],'KAKEROが何か、初回体験へ進めることが分かる','2-4'],
+      ['5.2','5','未確定','LPコピーを仮置きする','仮コピー',['5.1','OQ'],'最終コピーを確定せず、検証用文言で入口が成立する','0.5-1'],
+      ['5.3','5','決定済み','プラン/価格ページを作る','プラン/価格ページ',['5.1'],'本番決済なしで、有料エンジンの価値と無料範囲が説明されている','1-2'],
+      ['5.4','5','決定済み','きこうか君チュートリアルを作る','チュートリアル導線',['2.5','5.1'],'「ヤア、ワタシガキコウカクンデス」から願望入力へ進める','2-4'],
+      ['5.5','5','PoC必要','10カード登録体験を通す','初回登録フロー',['5.4','3.3','4.2'],'初回体験で5-10カードを登録し、盤面化できる','3-5'],
+      ['5.6','5','決定済み','覚えてほしいことリストを作る','memory_items UI',['1.1','5.4'],'10-20個程度の記憶項目を追加/編集でき、AI入力に含められる','2-4'],
+      ['5.7','5','PoC必要','次回きこうか君が盤面を理解するループを作る','盤面理解PoC',['1.4','3.6','5.6'],'会話履歴なしで、既存盤面を踏まえたカード化/修正ができる','2-4'],
+      ['5.8','5','未確定','今日の9タスク導線を仮実装する','今日タスク仮画面',['3.6','4.2','OQ'],'自動生成ロジック未確定のため、仮選定または手動選択で体験確認できる','2-4'],
+      ['5.9','5','PoC必要','遊びレイヤーPoCを作る','遊びレイヤーPoC',['5.4','5.5','KAKERO_PRINCIPLES.md'],'かわいい、楽しい、変な称号、育て要素、突発イベント、隠し要素のうち最低2-3要素を体験として試せる','3-5'],
+      ['5.10','5','PoC必要','予期しない報酬PoCを作る','突発イベント/隠し報酬PoC',['5.9','OQ'],'卵に固定せず、無料ユーザー向け試食体験や隠し報酬が毎日開く理由になるか検証できる','2-4'],
+      ['5.11','5','決定済み','原則確認ページ案を作る','KAKERO_PRINCIPLES_CHECK.html',['0.6'],'スマホで短く「これはKAKEROか？」を確認でき、実装/レビュー時に長文原則へ戻れる','1-2'],
+      ['5.12','5','決定済み','WS統合テストを行う','WSテスト結果',['5.1-5.11'],'入口 -> チュートリアル -> カード化 -> コンパス/けんこう反映 -> 手編集 -> 遊びレイヤー -> 再読込 が通る','2-3'],
+      ['6.1','6','PoC必要','技術GOを判定する','技術GO判定メモ',['5.12'],'Haiku、盤面、編集、保存、けんこう反映が通る/通らないを判断できる','1'],
+      ['6.2','6','PoC必要','体験GOを判定する','体験GO判定メモ',['5.12'],'10カード前後で「こうなるのね」が出ることに加え、遊びレイヤーが毎日開く理由になるか判断できる','1-2'],
+      ['6.3','6','未確定','事業GOを判定する','事業GO判定メモ',['5.1','5.3','5.5','5.9','OQ'],'ICP/価格/継続/集客/粗利の未決を明示したうえで次判断に進める','1-2'],
+      ['6.4','6','決定済み','次フェーズ計画を作る','次フェーズWBS',['6.1','6.2','6.3'],'本実装へ進む/PoC追加/事業検証優先/保留のいずれかが明確','1']
+    ].map(([id, phase, kind, title, deliverable, deps, done, effort]) => ({ id, phase, kind, title, deliverable, deps, done, effort }));
 
-  const head = el('div');
-  head.innerHTML = `<span class="sub-id">${t.id}</span><h2>${esc(t.title)}</h2>`;
-  sheetBody.appendChild(head);
+    const openQuestions = [
+      '??????: ???0?/3000?????????????????????',
+      '?????: ?????????????????????????????PoC???',
+      '???????: ?????????????????????????',
+      'Goodhart??: ????????????????????????',
+      '??????: ??????????????Cloudflare???compass-board???',
+      '??GO: ICP?????????????????????AI??'
+    ];
 
-  const meta = el('div','meta');
-  meta.innerHTML = `
-    <span class="tag kind-${esc(t.kind)}">${KIND_META[t.kind].emoji} ${esc(t.kind)}</span>
-    <span class="tag">${STATUS_META[status].emoji} ${STATUS_META[status].label}</span>
-    <span class="tag">⏳ ${esc(t.effort)}人日</span>
-  `;
-  sheetBody.appendChild(meta);
+    const initialDone = ['0.1', '0.2', '0.3', '0.4'];
+    const doneStoreKey = 'kakero-wbs-done-v1';
+    const selectedStoreKey = 'kakero-wbs-selected-v1';
+    const taskMap = new Map(tasks.map(task => [task.id, task]));
+    let doneIds = new Set(JSON.parse(localStorage.getItem(doneStoreKey) || 'null') || initialDone);
+    let selectedId = localStorage.getItem(selectedStoreKey) || '1.1';
+    let kindFilter = 'all';
+    let statusFilter = 'all';
+    let searchText = '';
+    let fitMode = false;
 
-  const f1 = el('div','field');
-  f1.innerHTML = `<span class="field-label">成果物</span><p class="field-value">📄 ${esc(t.deliverable)}</p>`;
-  sheetBody.appendChild(f1);
+    const board = document.getElementById('board');
+    const links = document.getElementById('links');
+    const detail = document.getElementById('detail');
+    const boardWrap = document.getElementById('boardWrap');
+    const kindChips = document.getElementById('kindChips');
+    const statusSelect = document.getElementById('statusSelect');
+    const searchInput = document.getElementById('searchInput');
+    const stats = document.getElementById('stats');
+    const readyList = document.getElementById('readyList');
+    const openList = document.getElementById('openList');
 
-  const f2 = el('div','field');
-  f2.innerHTML = `<span class="field-label">完了条件</span><p class="field-value">${esc(t.done)}</p>`;
-  sheetBody.appendChild(f2);
+    function isOpenBlocked(task) {
+      return task.kind === '未確定' || task.deps.includes('OQ');
+    }
 
-  const f3 = el('div','field');
-  const depHtml = deps.length
-    ? `<div class="card-meta">${deps.map(d => depChip(d, blockingNow.includes(d))).join('')}${hasOQ ? '<span class="tag kind-未確定">❓ OPEN_QUESTIONS</span>' : ''}</div>`
-    : (hasOQ ? `<div class="card-meta"><span class="tag kind-未確定">❓ OPEN_QUESTIONS</span></div>` : '<span class="muted">なし</span>');
-  f3.innerHTML = `<span class="field-label">依存関係（このマスより前）</span>${depHtml}`;
-  sheetBody.appendChild(f3);
+    function isDone(task) {
+      return doneIds.has(task.id);
+    }
 
-  const f4 = el('div','field');
-  f4.innerHTML = `<span class="field-label">後続タスク（このマスより先）</span>${next.length ? `<div class="card-meta">${next.map(d => depChip(d, false)).join('')}</div>` : '<span class="muted">なし</span>'}`;
-  sheetBody.appendChild(f4);
+    function depIds(task) {
+      return task.deps.filter(dep => taskMap.has(dep));
+    }
 
-  if (hasOpenDep(t)){
-    const f5 = el('div','field');
-    f5.innerHTML = `<span class="field-label">未決ブロッカー</span><p class="field-value">${esc(openQuestionNote)}</p>`;
-    sheetBody.appendChild(f5);
-  }
+    function blockers(task) {
+      return depIds(task).filter(dep => !doneIds.has(dep));
+    }
 
-  const toggle = el('label','toggle-row');
-  toggle.innerHTML = `
-    <span class="switch">
-      <input type="checkbox" ${doneIds.has(t.id) ? 'checked' : ''}>
-      <span class="track"></span>
-      <span class="thumb"></span>
-    </span>
-    <span>このマスを踏破済みにする</span>
-  `;
-  const cb = toggle.querySelector('input');
-  cb.addEventListener('change', () => {
-    if (cb.checked){ doneIds.add(t.id); toast('🎉 踏破！'); }
-    else { doneIds.delete(t.id); toast('未踏破に戻しました'); }
-    localStorage.setItem(doneKey, JSON.stringify([...doneIds]));
+    function statusOf(task) {
+      if (isDone(task)) return 'done';
+      if (isOpenBlocked(task)) return 'open';
+      if (blockers(task).length === 0) return 'ready';
+      return 'blocked';
+    }
+
+    function statusLabel(status) {
+      return {
+        done: '✓ 完了済み',
+        ready: '▶ 今進められる',
+        blocked: '□ 依存待ち',
+        open: '? 未決あり'
+      }[status] || status;
+    }
+
+    function kindLabel(kind) {
+      return {
+        '決定済み': '◆ 決定済み',
+        'PoC必要': '◇ PoC必要',
+        '未確定': '? 未確定',
+        '後回し': '□ 後回し'
+      }[kind] || kind;
+    }
+
+    function downstream(id) {
+      return tasks.filter(task => depIds(task).includes(id)).map(task => task.id);
+    }
+
+    function matches(task) {
+      const status = statusOf(task);
+      const text = [task.id, task.title, task.kind, task.deliverable, task.done, task.effort].join(' ').toLowerCase();
+      const searchOk = !searchText || text.includes(searchText.toLowerCase());
+      const kindOk = kindFilter === 'all' || task.kind === kindFilter;
+      const statusOk = statusFilter === 'all' || status === statusFilter;
+      return searchOk && kindOk && statusOk;
+    }
+
+    function renderChips() {
+      const kinds = ['all', '決定済み', 'PoC必要', '未確定'];
+      kindChips.innerHTML = kinds.map(kind => {
+        const label = kind === 'all' ? 'すべて' : kind;
+        return `<button class="chip ${kindFilter === kind ? 'active' : ''}" type="button" data-kind="${kind}">${label}</button>`;
+      }).join('');
+      kindChips.querySelectorAll('button').forEach(button => {
+        button.addEventListener('click', () => {
+          kindFilter = button.dataset.kind;
+          render();
+        });
+      });
+    }
+
+    function renderStats() {
+      const counts = { done: 0, ready: 0, blocked: 0, open: 0 };
+      tasks.forEach(task => counts[statusOf(task)]++);
+      stats.innerHTML = [
+        ['ready', counts.ready, '今進められる'],
+        ['open', counts.open, '未決あり'],
+        ['blocked', counts.blocked, '依存待ち'],
+        ['done', counts.done, '完了済み']
+      ].map(([status, count, label]) => `
+        <div class="stat">
+          <strong>${count}</strong>
+          <span>${label}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderQuickLists() {
+      const ready = tasks.filter(task => statusOf(task) === 'ready').slice(0, 8);
+      readyList.innerHTML = ready.length
+        ? ready.map(task => quickButton(task)).join('')
+        : '<div class="empty-column">現時点で依存なしの未完了タスクはありません。</div>';
+
+      const open = tasks.filter(task => statusOf(task) === 'open').slice(0, 8);
+      openList.innerHTML = open.length
+        ? open.map(task => quickButton(task)).join('')
+        : '<div class="empty-column">未決ブロッカーはありません。</div>';
+
+      document.querySelectorAll('[data-jump]').forEach(button => {
+        button.addEventListener('click', () => selectTask(button.dataset.jump, true));
+      });
+    }
+
+    function quickButton(task) {
+      return `<button class="quick-item" type="button" data-jump="${task.id}">
+        <strong>${task.id} ${escapeHtml(task.title)}</strong>
+        <span>${escapeHtml(task.deliverable)}</span>
+      </button>`;
+    }
+
+    function renderBoard() {
+      const selected = taskMap.get(selectedId);
+      const selectedDeps = selected ? new Set(depIds(selected)) : new Set();
+      const selectedDownstream = selected ? new Set(downstream(selected.id)) : new Set();
+      board.style.transform = fitMode ? 'scale(0.72)' : 'none';
+      board.style.transformOrigin = 'top left';
+      board.innerHTML = phases.map(phase => {
+        const phaseTasks = tasks.filter(task => task.phase === phase.id && matches(task));
+        const cards = phaseTasks.map(task => {
+          const status = statusOf(task);
+          const classes = [
+            'card',
+            task.id === selectedId ? 'selected' : '',
+            selectedDeps.has(task.id) ? 'dependency' : '',
+            selectedDownstream.has(task.id) ? 'dependent' : ''
+          ].filter(Boolean).join(' ');
+          return `<button class="${classes}" type="button" data-task="${task.id}" data-kind="${task.kind}">
+            <span class="card-id">${task.id} / ${kindLabel(task.kind)}</span>
+            <span class="card-title">${escapeHtml(task.title)}</span>
+            <span class="card-meta">
+              <span class="badge ${status}">${statusLabel(status)}</span>
+              <span class="badge">${escapeHtml(task.effort)}人日</span>
+            </span>
+          </button>`;
+        }).join('');
+        return `<section class="phase" data-phase="${phase.id}">
+          <div class="phase-head">
+            <h3 class="phase-title">
+              <span class="phase-name"><span class="phase-icon" aria-hidden="true">${phase.icon}</span><span>${phase.name}: ${phase.title}</span></span>
+              <span class="phase-count">${phaseTasks.length}/${tasks.filter(task => task.phase === phase.id).length}</span>
+            </h3>
+            <p class="phase-sub">${phase.note}</p>
+          </div>
+          <div class="cards">${cards || '<div class="empty-column">条件に合うタスクなし</div>'}</div>
+        </section>`;
+      }).join('');
+      board.querySelectorAll('[data-task]').forEach(button => {
+        button.addEventListener('click', () => selectTask(button.dataset.task, false));
+      });
+      requestAnimationFrame(drawLinks);
+    }
+
+    function renderDetail() {
+      const task = taskMap.get(selectedId);
+      if (!task) {
+        detail.innerHTML = '<h2>詳細</h2><div class="detail-empty">カードを選ぶと詳細が出ます。</div>';
+        return;
+      }
+      const status = statusOf(task);
+      const deps = depIds(task);
+      const nonTaskDeps = task.deps.filter(dep => !taskMap.has(dep));
+      const next = downstream(task.id);
+      const blockersNow = blockers(task);
+      detail.innerHTML = `
+        <h2>詳細</h2>
+        <h3 class="detail-title">${task.id} ${escapeHtml(task.title)}</h3>
+        <div class="detail-meta">
+          <span class="badge">${kindLabel(task.kind)}</span>
+          <span class="badge ${status}">${statusLabel(status)}</span>
+          <span class="badge">${escapeHtml(task.effort)}人日</span>
+        </div>
+        <div class="field">
+          <span class="field-label">成果物</span>
+          <p class="field-value">${escapeHtml(task.deliverable)}</p>
+        </div>
+        <div class="field">
+          <span class="field-label">完了条件</span>
+          <p class="field-value">${escapeHtml(task.done)}</p>
+        </div>
+        <div class="field">
+          <span class="field-label">依存関係</span>
+          <div class="dep-buttons">
+            ${deps.length ? deps.map(dep => depButton(dep, blockersNow.includes(dep))).join('') : '<span class="muted">なし</span>'}
+            ${nonTaskDeps.includes('OQ') ? '<span class="badge open">OPEN_QUESTIONS</span>' : ''}
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-label">後続タスク</span>
+          <div class="dep-buttons">
+            ${next.length ? next.map(dep => depButton(dep, false)).join('') : '<span class="muted">なし</span>'}
+          </div>
+        </div>
+        ${isOpenBlocked(task) ? `<div class="field">
+          <span class="field-label">未決ブロッカー</span>
+          <p class="field-value">${openQuestions.map(escapeHtml).join('<br>')}</p>
+        </div>` : ''}
+        <label class="toggle-row">
+          <input type="checkbox" id="doneToggle" ${isDone(task) ? 'checked' : ''}>
+          <span>このタスクを完了扱いにする</span>
+        </label>
+      `;
+      detail.querySelectorAll('[data-jump]').forEach(button => {
+        button.addEventListener('click', () => selectTask(button.dataset.jump, true));
+      });
+      document.getElementById('doneToggle').addEventListener('change', event => {
+        if (event.target.checked) doneIds.add(task.id);
+        else doneIds.delete(task.id);
+        localStorage.setItem(doneStoreKey, JSON.stringify([...doneIds]));
+        render();
+      });
+    }
+
+    function depButton(id, blocking) {
+      const task = taskMap.get(id);
+      const label = task ? `${id} ${task.title}` : id;
+      return `<button class="dep-button ${blocking ? 'blocking' : ''}" type="button" data-jump="${id}">${escapeHtml(label)}</button>`;
+    }
+
+    function selectTask(id, scroll) {
+      if (!taskMap.has(id)) return;
+      selectedId = id;
+      localStorage.setItem(selectedStoreKey, selectedId);
+      render();
+      if (scroll) {
+        requestAnimationFrame(() => {
+          const el = board.querySelector(`[data-task="${CSS.escape(id)}"]`);
+          if (el) el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+        });
+      }
+    }
+
+    function drawLinks() {
+      const wrapRect = boardWrap.getBoundingClientRect();
+      const boardRect = board.getBoundingClientRect();
+      const width = Math.max(board.scrollWidth, boardRect.width);
+      const height = Math.max(board.scrollHeight, boardRect.height);
+      links.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      links.style.width = `${width}px`;
+      links.style.height = `${height}px`;
+      const selected = taskMap.get(selectedId);
+      if (!selected) {
+        links.innerHTML = '';
+        return;
+      }
+      const related = [
+        ...depIds(selected).map(dep => [dep, selected.id, 'dep']),
+        ...downstream(selected.id).map(next => [selected.id, next, 'next'])
+      ];
+      const paths = related.map(([from, to, type]) => {
+        const fromEl = board.querySelector(`[data-task="${CSS.escape(from)}"]`);
+        const toEl = board.querySelector(`[data-task="${CSS.escape(to)}"]`);
+        if (!fromEl || !toEl) return '';
+        const a = fromEl.getBoundingClientRect();
+        const b = toEl.getBoundingClientRect();
+        const x1 = a.right - boardRect.left;
+        const y1 = a.top + a.height / 2 - boardRect.top;
+        const x2 = b.left - boardRect.left;
+        const y2 = b.top + b.height / 2 - boardRect.top;
+        const mid = Math.max(40, Math.abs(x2 - x1) / 2);
+        const color = type === 'dep' ? '#b45309' : '#047857';
+        return `<path d="M ${x1} ${y1} C ${x1 + mid} ${y1}, ${x2 - mid} ${y2}, ${x2} ${y2}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`;
+      }).join('');
+      links.innerHTML = paths;
+    }
+
+    function render() {
+      renderChips();
+      renderStats();
+      renderQuickLists();
+      renderBoard();
+      renderDetail();
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    statusSelect.addEventListener('change', event => {
+      statusFilter = event.target.value;
+      render();
+    });
+
+    searchInput.addEventListener('input', event => {
+      searchText = event.target.value;
+      render();
+    });
+
+    document.getElementById('resetButton').addEventListener('click', () => {
+      doneIds = new Set(initialDone);
+      localStorage.setItem(doneStoreKey, JSON.stringify([...doneIds]));
+      render();
+    });
+
+    document.getElementById('fitButton').addEventListener('click', () => {
+      fitMode = !fitMode;
+      document.getElementById('fitButton').textContent = fitMode ? '通常表示' : '全体表示';
+      render();
+    });
+
+    window.addEventListener('resize', () => requestAnimationFrame(drawLinks));
+    boardWrap.addEventListener('scroll', () => requestAnimationFrame(drawLinks));
     render();
-    openDetail(t.id);
-  });
-  sheetBody.appendChild(toggle);
-
-  sheetBody.querySelectorAll('[data-jump]').forEach(btn => {
-    btn.addEventListener('click', () => openDetail(btn.dataset.jump));
-  });
-
-  scrim.classList.add('show');
-  sheet.classList.add('show');
-  sheet.setAttribute('aria-hidden','false');
-  requestAnimationFrame(drawArrows);
-}
-
-scrim.addEventListener('click', closeDetail);
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
-
-/* ================= 検索 ================= */
-document.getElementById('searchInput').addEventListener('input', e => {
-  searchText = e.target.value;
-  renderBoard();
-  if (selectedId) requestAnimationFrame(drawArrows);
-});
-
-/* ================= トースト ================= */
-function toast(msg){
-  const wrap = document.getElementById('toastWrap');
-  const t = el('div','toast', msg);
-  wrap.appendChild(t);
-  setTimeout(() => {
-    t.classList.add('out');
-    setTimeout(() => t.remove(), 320);
-  }, 1600);
-}
-
-render();
-</script>
+  </script>
 </body>
 </html>
