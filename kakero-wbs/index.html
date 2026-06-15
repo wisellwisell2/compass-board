@@ -1,0 +1,1026 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KAKERO WBS Dependency View</title>
+  <style>
+    :root {
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-300: #cbd5e1;
+      --slate-400: #94a3b8;
+      --slate-500: #64748b;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+      --blue-50: #eff6ff;
+      --blue-100: #dbeafe;
+      --blue-600: #2563eb;
+      --blue-700: #1d4ed8;
+      --emerald-50: #ecfdf5;
+      --emerald-100: #d1fae5;
+      --emerald-700: #047857;
+      --amber-50: #fffbeb;
+      --amber-100: #fef3c7;
+      --amber-700: #b45309;
+      --rose-50: #fff1f2;
+      --rose-100: #ffe4e6;
+      --rose-700: #be123c;
+      --z-base: 1;
+      --z-lines: 2;
+      --z-card: 3;
+      --z-panel: 4;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      color: var(--slate-900);
+      background: var(--slate-50);
+      font-family: "Yu Gothic UI", "Meiryo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 100dvh;
+    }
+
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: var(--z-panel);
+      border-bottom: 1px solid var(--slate-200);
+      background: rgba(248, 250, 252, 0.98);
+      padding: 14px 18px;
+    }
+
+    .header-main {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.25;
+      text-wrap: balance;
+    }
+
+    .title-block p {
+      margin: 4px 0 0;
+      max-width: 880px;
+      color: var(--slate-600);
+      font-size: 13px;
+      line-height: 1.6;
+      text-wrap: pretty;
+    }
+
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .toolbar-btn {
+      border: 1px solid var(--slate-300);
+      border-radius: 8px;
+      background: white;
+      color: var(--slate-700);
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
+    .toolbar-btn:hover,
+    .toolbar-btn:focus-visible {
+      border-color: var(--blue-600);
+      outline: 2px solid var(--blue-100);
+      outline-offset: 1px;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr) 340px;
+      gap: 14px;
+      padding: 14px;
+      min-height: 0;
+    }
+
+    .panel {
+      min-width: 0;
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      background: white;
+    }
+
+    .side {
+      align-self: start;
+      position: sticky;
+      top: 89px;
+      z-index: var(--z-panel);
+      max-height: calc(100dvh - 110px);
+      overflow: auto;
+      padding: 14px;
+    }
+
+    .side h2,
+    .detail h2 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .section {
+      border-top: 1px solid var(--slate-200);
+      margin-top: 14px;
+      padding-top: 14px;
+    }
+
+    .control-label {
+      display: block;
+      margin: 0 0 6px;
+      color: var(--slate-600);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .select,
+    .search {
+      width: 100%;
+      border: 1px solid var(--slate-300);
+      border-radius: 8px;
+      background: white;
+      padding: 9px 10px;
+      color: var(--slate-800);
+      font-size: 13px;
+    }
+
+    .select:focus,
+    .search:focus {
+      border-color: var(--blue-600);
+      outline: 2px solid var(--blue-100);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      border: 1px solid var(--slate-300);
+      border-radius: 999px;
+      background: white;
+      padding: 6px 9px;
+      color: var(--slate-700);
+      font-size: 12px;
+    }
+
+    .chip.active {
+      border-color: var(--blue-600);
+      background: var(--blue-50);
+      color: var(--blue-700);
+      font-weight: 700;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .stat {
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      padding: 10px;
+      background: var(--slate-50);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 20px;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 4px;
+      color: var(--slate-600);
+      font-size: 12px;
+    }
+
+    .quick-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .quick-item {
+      width: 100%;
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      background: var(--slate-50);
+      padding: 8px;
+      text-align: left;
+      color: var(--slate-800);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .quick-item strong {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--slate-900);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .board-wrap {
+      position: relative;
+      min-width: 0;
+      overflow: auto;
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      background: white;
+    }
+
+    .board {
+      position: relative;
+      z-index: var(--z-base);
+      display: grid;
+      grid-template-columns: repeat(7, minmax(235px, 1fr));
+      gap: 10px;
+      min-width: 1680px;
+      padding: 12px;
+    }
+
+    .links {
+      position: absolute;
+      inset: 0;
+      z-index: var(--z-lines);
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .phase {
+      min-width: 0;
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      background: var(--slate-50);
+      padding: 10px;
+    }
+
+    .phase-head {
+      position: sticky;
+      top: 0;
+      z-index: var(--z-card);
+      margin: -10px -10px 10px;
+      border-bottom: 1px solid var(--slate-200);
+      border-radius: 8px 8px 0 0;
+      background: white;
+      padding: 10px;
+    }
+
+    .phase-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .phase-count {
+      color: var(--slate-500);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .phase-sub {
+      margin: 4px 0 0;
+      color: var(--slate-500);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .cards {
+      display: grid;
+      gap: 8px;
+    }
+
+    .card {
+      position: relative;
+      z-index: var(--z-card);
+      width: 100%;
+      border: 1px solid var(--slate-200);
+      border-left-width: 5px;
+      border-radius: 8px;
+      background: white;
+      padding: 10px;
+      text-align: left;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }
+
+    .card:hover,
+    .card:focus-visible {
+      border-color: var(--blue-600);
+      outline: 2px solid var(--blue-100);
+      outline-offset: 1px;
+    }
+
+    .card.selected {
+      border-color: var(--blue-600);
+      background: var(--blue-50);
+    }
+
+    .card.dependency {
+      border-color: var(--amber-700);
+      background: var(--amber-50);
+    }
+
+    .card.dependent {
+      border-color: var(--emerald-700);
+      background: var(--emerald-50);
+    }
+
+    .card-id {
+      color: var(--slate-500);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-title {
+      display: block;
+      margin-top: 4px;
+      color: var(--slate-900);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.45;
+      text-wrap: pretty;
+    }
+
+    .card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 8px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      border: 1px solid var(--slate-200);
+      border-radius: 999px;
+      padding: 2px 7px;
+      background: white;
+      color: var(--slate-600);
+      font-size: 11px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .badge.done { border-color: var(--emerald-100); background: var(--emerald-50); color: var(--emerald-700); }
+    .badge.ready { border-color: var(--blue-100); background: var(--blue-50); color: var(--blue-700); }
+    .badge.blocked { border-color: var(--rose-100); background: var(--rose-50); color: var(--rose-700); }
+    .badge.open { border-color: var(--amber-100); background: var(--amber-50); color: var(--amber-700); }
+
+    .card[data-kind="決定済み"] { border-left-color: var(--blue-600); }
+    .card[data-kind="PoC必要"] { border-left-color: var(--amber-700); }
+    .card[data-kind="未確定"] { border-left-color: var(--rose-700); }
+    .card[data-kind="後回し"] { border-left-color: var(--slate-500); }
+
+    .detail {
+      align-self: start;
+      position: sticky;
+      top: 89px;
+      z-index: var(--z-panel);
+      max-height: calc(100dvh - 110px);
+      overflow: auto;
+      padding: 14px;
+    }
+
+    .detail-empty {
+      border: 1px dashed var(--slate-300);
+      border-radius: 8px;
+      padding: 14px;
+      color: var(--slate-600);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .detail-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.35;
+      text-wrap: balance;
+    }
+
+    .detail-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 10px 0 14px;
+    }
+
+    .field {
+      border-top: 1px solid var(--slate-200);
+      padding: 10px 0;
+    }
+
+    .field-label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--slate-500);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .field-value {
+      margin: 0;
+      color: var(--slate-800);
+      font-size: 13px;
+      line-height: 1.65;
+      text-wrap: pretty;
+    }
+
+    .dep-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .dep-button {
+      border: 1px solid var(--slate-300);
+      border-radius: 999px;
+      background: white;
+      padding: 5px 8px;
+      color: var(--slate-700);
+      font-size: 12px;
+    }
+
+    .dep-button:hover,
+    .dep-button:focus-visible {
+      border-color: var(--blue-600);
+      outline: 2px solid var(--blue-100);
+      outline-offset: 1px;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      border-top: 1px solid var(--slate-200);
+      padding-top: 12px;
+      color: var(--slate-700);
+      font-size: 13px;
+    }
+
+    .toggle-row input {
+      width: 18px;
+      height: 18px;
+    }
+
+    .muted {
+      color: var(--slate-500);
+    }
+
+    .empty-column {
+      border: 1px dashed var(--slate-300);
+      border-radius: 8px;
+      padding: 10px;
+      color: var(--slate-500);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 1180px) {
+      .shell {
+        grid-template-columns: 260px minmax(0, 1fr);
+      }
+
+      .detail {
+        grid-column: 1 / -1;
+        position: static;
+        max-height: none;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .header-main,
+      .shell {
+        display: block;
+      }
+
+      .header-actions {
+        justify-content: flex-start;
+        margin-top: 10px;
+      }
+
+      .side {
+        position: static;
+        max-height: none;
+        margin-bottom: 12px;
+      }
+
+      .board-wrap {
+        min-height: 60dvh;
+      }
+
+      .detail {
+        margin-top: 12px;
+      }
+    }
+
+    @media print {
+      .header,
+      .side,
+      .detail {
+        position: static;
+      }
+
+      .toolbar-btn,
+      .chip,
+      .select,
+      .search,
+      .toggle-row {
+        display: none;
+      }
+
+      .shell {
+        display: block;
+      }
+
+      .board-wrap {
+        overflow: visible;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="header-main">
+        <div class="title-block">
+          <h1>KAKERO WBS 依存ビュー</h1>
+          <p>「ここが未決だから止まる」「これは依存が終われば進められる」を見るためのインタラクティブ版。完了チェックはこのHTMLのlocalStorageだけに保存されます。</p>
+        </div>
+        <div class="header-actions">
+          <button class="toolbar-btn" id="fitButton" type="button">全体表示</button>
+          <button class="toolbar-btn" id="resetButton" type="button">完了状態リセット</button>
+          <button class="toolbar-btn" type="button" onclick="window.print()">印刷</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="shell">
+      <aside class="panel side" aria-label="WBS filters and quick navigation">
+        <h2>絞り込み</h2>
+        <label class="control-label" for="searchInput">検索</label>
+        <input class="search" id="searchInput" type="search" placeholder="例: Haiku / けんこう / 価格">
+
+        <div class="section">
+          <span class="control-label">分類</span>
+          <div class="chips" id="kindChips"></div>
+        </div>
+
+        <div class="section">
+          <label class="control-label" for="statusSelect">進行状態</label>
+          <select class="select" id="statusSelect">
+            <option value="all">すべて</option>
+            <option value="ready">今進められる</option>
+            <option value="blocked">依存待ち</option>
+            <option value="open">未決あり</option>
+            <option value="done">完了済み</option>
+          </select>
+        </div>
+
+        <div class="section">
+          <h2>サマリー</h2>
+          <div class="stats" id="stats"></div>
+        </div>
+
+        <div class="section">
+          <h2>今進められる</h2>
+          <div class="quick-list" id="readyList"></div>
+        </div>
+
+        <div class="section">
+          <h2>未決で止まりやすい</h2>
+          <div class="quick-list" id="openList"></div>
+        </div>
+      </aside>
+
+      <section class="board-wrap" id="boardWrap" aria-label="WBS dependency board">
+        <svg class="links" id="links" aria-hidden="true"></svg>
+        <div class="board" id="board"></div>
+      </section>
+
+      <aside class="panel detail" id="detail" aria-label="Task detail">
+        <h2>詳細</h2>
+        <div class="detail-empty">カードを選ぶと、成果物・依存関係・完了条件・後続タスクがここに出ます。</div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const phases = [
+      { id: '0', name: 'Phase 0', title: '文書・台帳整備', note: 'まず正本と未決を分ける' },
+      { id: '1', name: 'Phase 1', title: 'データの骨', note: 'KAKERO内部JSONを切る' },
+      { id: '2', name: 'Phase 2', title: 'Haikuカード化PoC', note: 'きこうか君の脳を検証' },
+      { id: '3', name: 'Phase 3', title: '人生コンパス反映PoC', note: '盤面に出す' },
+      { id: '4', name: 'Phase 4', title: 'けんこうマップ反映PoC', note: 'ToDo以上の意味を出す' },
+      { id: '5', name: 'Phase 5', title: '商品walking skeleton', note: '最低限遊べる商品状態' },
+      { id: '6', name: 'Phase 6', title: 'GO判定', note: '技術・体験・事業を分けて判定' }
+    ];
+
+    const tasks = [
+      ['0.1','0','決定済み','決定ログを作る','DECISION_LOG.md',[], '最新優先ルール、決定済み、前提、判断日が記録されている','0.5'],
+      ['0.2','0','決定済み','未決事項台帳を作る','OPEN_QUESTIONS.md',[], '事業判断・価格・仕様未確定がカテゴリ別に整理されている','0.5'],
+      ['0.3','0','決定済み','却下案台帳を作る','REJECTED_IDEAS.md',[], 'walking skeleton外、却下、将来再検討の区別がある','0.5'],
+      ['0.4','0','決定済み','WBSを確定する','WBS.md',['0.1','0.2','0.3'], '決定済み/未確定/PoC必要/後回しが分離され、各タスクに成果物・依存・完了条件がある','1'],
+      ['0.5','0','決定済み','既存資料を開発用正本へ分解する','開発用ドキュメント一覧',['0.1'], 'PRD/要件/基本設計/PoC計画/WS仕様へ分ける対象が明確','1-2'],
+      ['1.1','1','PoC必要','KAKERO内部スキーマ v0.1 を定義する','KAKERO_DATA_v0.1.md',['0.4'], 'nodes, edges, health_map, memory_items, metadata の役割が定義されている','1-2'],
+      ['1.2','1','PoC必要','サンプル盤面データを作る','sample_board.json',['1.1'], '10カード前後、サブカード、小タスク、依存、状態、記憶項目、けんこうマップが入っている','1'],
+      ['1.3','1','PoC必要','Haiku出力サンプルを作る','sample_haiku_output.json',['1.1'], '6フィールド出力と内部スキーマ変換後の形が対応している','0.5-1'],
+      ['1.4','1','PoC必要','盤面をAIへ渡す入力形式を決める','AI入力ペイロード仕様',['1.1'], '会話ログなしで、既存カード・マップ値・記憶項目を渡せる','1'],
+      ['2.1','2','PoC必要','API中継の最小構成を作る','Haiku中継PoC',['1.3'], '1発話1コール、履歴なし、temperature低めで呼べる','1-2'],
+      ['2.2','2','PoC必要','6フィールドJSON出力を検証する','カード化テスト結果',['2.1'], '願望系テスト発話が card/subcards/tasks/premises/dependencies/success に分解される','1-2'],
+      ['2.3','2','PoC必要','脱線拒否を検証する','脱線テスト結果',['2.1'], '雑談・天気・愚痴・きこうか君への話しかけを イマソノハナシヲシテマセン で弾ける','0.5-1'],
+      ['2.4','2','PoC必要','複数願望混在入力を検証する','混在入力テスト結果',['2.1'], '金欲しい、モテたい、引っ越したいを中心カード+関連要素へ畳める','0.5'],
+      ['2.5','2','PoC必要','内部スキーマへの変換を検証する','変換PoC',['2.2','2.3','2.4'], 'Haiku出力が nodes/edges/metadata に破綻なく入る','1-2'],
+      ['2.6','2','PoC必要','Haiku採用/上位モデル再判定を行う','技術判定メモ',['2.2','2.3','2.4','2.5'], 'Haiku継続、プロンプト修正、Sonnet再検証のいずれかが判断できる','0.5'],
+      ['3.1','3','PoC必要','既存 compass-board ソースを調査する','調査メモ',['0.4'], '技術構成、表示構造、流用可否、改修ポイントが分かる','1-2'],
+      ['3.2','3','PoC必要','KAKEROデータをコンパス表示へ流し込む','コンパス反映PoC',['1.2','3.1'], 'sample_board のカードが画面に表示される','2-4'],
+      ['3.3','3','PoC必要','10カード表示を検証する','10カード表示PoC',['3.2'], '10個前後並べても人生コンパスっぽい俯瞰が崩れない','1-2'],
+      ['3.4','3','PoC必要','状態表示ルールを反映する','状態表示PoC',['3.2'], '未着手/実行中/完了/大達成/未解放/待機/メモあり等を識別できる','1-2'],
+      ['3.5','3','PoC必要','手編集PoCを作る','編集PoC',['3.2'], 'カードの編集、移動、削除、状態変更ができる','2-4'],
+      ['3.6','3','PoC必要','編集結果を盤面に保存/復元する','保存復元PoC',['3.5'], 'リロード後も編集結果が残る。保存方式は作りやすさ優先で仮置き','1-2'],
+      ['4.1','4','PoC必要','けんこうマップの最小データ構造を定義する','health_map仕様',['1.1'], '生活/仕事/心身/金/家族/余白などの反映先が定義されている','1-2'],
+      ['4.2','4','PoC必要','カードからけんこうマップへ反映する','けんこう反映PoC',['2.5','4.1'], 'カード追加でマップ項目・総合点・今月モード候補が変化する','2-4'],
+      ['4.3','4','PoC必要','単なるToDo化していないか検証する','体験レビュー結果',['4.2'], 'カードとマップの関係が意味ある状態変化として見える','1'],
+      ['4.4','4','未確定','初期自動反映精度を調整する','調整方針メモ',['4.2','OQ'], '自動反映の深さをWSで必要な最低限に抑えられている','1-2'],
+      ['5.1','5','決定済み','LP/入口を作る','入口画面',['3.2'], 'KAKEROが何か、初回体験へ進めることが分かる','2-4'],
+      ['5.2','5','未確定','LPコピーを仮置きする','仮コピー',['5.1','OQ'], '最終コピーを確定せず、検証用文言で入口が成立する','0.5-1'],
+      ['5.3','5','決定済み','プラン/価格ページを作る','プラン/価格ページ',['5.1'], '本番決済なしで、有料エンジンの価値と無料範囲が説明されている','1-2'],
+      ['5.4','5','決定済み','きこうか君チュートリアルを作る','チュートリアル導線',['2.5','5.1'], 'ヤア、ワタシガキコウカクンデス から願望入力へ進める','2-4'],
+      ['5.5','5','PoC必要','10カード登録体験を通す','初回登録フロー',['5.4','3.3','4.2'], '初回体験で5-10カードを登録し、盤面化できる','3-5'],
+      ['5.6','5','決定済み','覚えてほしいことリストを作る','memory_items UI',['1.1','5.4'], '10-20個程度の記憶項目を追加/編集でき、AI入力に含められる','2-4'],
+      ['5.7','5','PoC必要','次回きこうか君が盤面を理解するループを作る','盤面理解PoC',['1.4','3.6','5.6'], '会話履歴なしで、既存盤面を踏まえたカード化/修正ができる','2-4'],
+      ['5.8','5','未確定','今日の9タスク導線を仮実装する','今日タスク仮画面',['3.6','4.2','OQ'], '自動生成ロジック未確定のため、仮選定または手動選択で体験確認できる','2-4'],
+      ['5.9','5','決定済み','WS統合テストを行う','WSテスト結果',['5.1','5.2','5.3','5.4','5.5','5.6','5.7','5.8'], '入口 -> チュートリアル -> カード化 -> コンパス/けんこう反映 -> 手編集 -> 再読込 が通る','2-3'],
+      ['6.1','6','PoC必要','技術GOを判定する','技術GO判定メモ',['5.9'], 'Haiku、盤面、編集、保存、けんこう反映が通る/通らないを判断できる','1'],
+      ['6.2','6','PoC必要','体験GOを判定する','体験GO判定メモ',['5.9'], '10カード前後で、こうなるのね、が出るかを判断できる','1-2'],
+      ['6.3','6','未確定','事業GOを判定する','事業GO判定メモ',['5.1','5.3','5.5','OQ'], 'ICP/価格/継続/集客/粗利の未決を明示したうえで次判断に進める','1-2'],
+      ['6.4','6','決定済み','次フェーズ計画を作る','次フェーズWBS',['6.1','6.2','6.3'], '本実装へ進む/PoC追加/事業検証優先/保留のいずれかが明確','1']
+    ].map(([id, phase, kind, title, deliverable, deps, done, effort]) => ({ id, phase, kind, title, deliverable, deps, done, effort }));
+
+    const openQuestions = [
+      '価格・プラン: 初期価格設計、980円、プラン呼称、丁々発止回数、超丁々発止原価',
+      '体験・仕様: 卵演出、今日の9タスク、けんこうマップ反映精度、LPコピー、きこうか君口調',
+      'データ・保存: 保存方式本決定、スマホ移行、Cloudflare保存、compass-board実構成',
+      '事業GO: ICP、数値基準、初期獲得チャネル、支払い意思、AI原価'
+    ];
+
+    const initialDone = ['0.1', '0.2', '0.3', '0.4'];
+    const doneStoreKey = 'kakero-wbs-done-v1';
+    const selectedStoreKey = 'kakero-wbs-selected-v1';
+    const taskMap = new Map(tasks.map(task => [task.id, task]));
+    let doneIds = new Set(JSON.parse(localStorage.getItem(doneStoreKey) || 'null') || initialDone);
+    let selectedId = localStorage.getItem(selectedStoreKey) || '1.1';
+    let kindFilter = 'all';
+    let statusFilter = 'all';
+    let searchText = '';
+    let fitMode = false;
+
+    const board = document.getElementById('board');
+    const links = document.getElementById('links');
+    const detail = document.getElementById('detail');
+    const boardWrap = document.getElementById('boardWrap');
+    const kindChips = document.getElementById('kindChips');
+    const statusSelect = document.getElementById('statusSelect');
+    const searchInput = document.getElementById('searchInput');
+    const stats = document.getElementById('stats');
+    const readyList = document.getElementById('readyList');
+    const openList = document.getElementById('openList');
+
+    function isOpenBlocked(task) {
+      return task.kind === '未確定' || task.deps.includes('OQ');
+    }
+
+    function isDone(task) {
+      return doneIds.has(task.id);
+    }
+
+    function depIds(task) {
+      return task.deps.filter(dep => taskMap.has(dep));
+    }
+
+    function blockers(task) {
+      return depIds(task).filter(dep => !doneIds.has(dep));
+    }
+
+    function statusOf(task) {
+      if (isDone(task)) return 'done';
+      if (isOpenBlocked(task)) return 'open';
+      if (blockers(task).length === 0) return 'ready';
+      return 'blocked';
+    }
+
+    function statusLabel(status) {
+      return {
+        done: '完了済み',
+        ready: '今進められる',
+        blocked: '依存待ち',
+        open: '未決あり'
+      }[status] || status;
+    }
+
+    function downstream(id) {
+      return tasks.filter(task => depIds(task).includes(id)).map(task => task.id);
+    }
+
+    function matches(task) {
+      const status = statusOf(task);
+      const text = [task.id, task.title, task.kind, task.deliverable, task.done, task.effort].join(' ').toLowerCase();
+      const searchOk = !searchText || text.includes(searchText.toLowerCase());
+      const kindOk = kindFilter === 'all' || task.kind === kindFilter;
+      const statusOk = statusFilter === 'all' || status === statusFilter;
+      return searchOk && kindOk && statusOk;
+    }
+
+    function renderChips() {
+      const kinds = ['all', '決定済み', 'PoC必要', '未確定'];
+      kindChips.innerHTML = kinds.map(kind => {
+        const label = kind === 'all' ? 'すべて' : kind;
+        return `<button class="chip ${kindFilter === kind ? 'active' : ''}" type="button" data-kind="${kind}">${label}</button>`;
+      }).join('');
+      kindChips.querySelectorAll('button').forEach(button => {
+        button.addEventListener('click', () => {
+          kindFilter = button.dataset.kind;
+          render();
+        });
+      });
+    }
+
+    function renderStats() {
+      const counts = { done: 0, ready: 0, blocked: 0, open: 0 };
+      tasks.forEach(task => counts[statusOf(task)]++);
+      stats.innerHTML = [
+        ['ready', counts.ready, '今進められる'],
+        ['open', counts.open, '未決あり'],
+        ['blocked', counts.blocked, '依存待ち'],
+        ['done', counts.done, '完了済み']
+      ].map(([status, count, label]) => `
+        <div class="stat">
+          <strong>${count}</strong>
+          <span>${label}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderQuickLists() {
+      const ready = tasks.filter(task => statusOf(task) === 'ready').slice(0, 8);
+      readyList.innerHTML = ready.length
+        ? ready.map(task => quickButton(task)).join('')
+        : '<div class="empty-column">現時点で依存なしの未完了タスクはありません。</div>';
+
+      const open = tasks.filter(task => statusOf(task) === 'open').slice(0, 8);
+      openList.innerHTML = open.length
+        ? open.map(task => quickButton(task)).join('')
+        : '<div class="empty-column">未決ブロッカーはありません。</div>';
+
+      document.querySelectorAll('[data-jump]').forEach(button => {
+        button.addEventListener('click', () => selectTask(button.dataset.jump, true));
+      });
+    }
+
+    function quickButton(task) {
+      return `<button class="quick-item" type="button" data-jump="${task.id}">
+        <strong>${task.id} ${escapeHtml(task.title)}</strong>
+        <span>${escapeHtml(task.deliverable)}</span>
+      </button>`;
+    }
+
+    function renderBoard() {
+      const selected = taskMap.get(selectedId);
+      const selectedDeps = selected ? new Set(depIds(selected)) : new Set();
+      const selectedDownstream = selected ? new Set(downstream(selected.id)) : new Set();
+      board.style.transform = fitMode ? 'scale(0.72)' : 'none';
+      board.style.transformOrigin = 'top left';
+      board.innerHTML = phases.map(phase => {
+        const phaseTasks = tasks.filter(task => task.phase === phase.id && matches(task));
+        const cards = phaseTasks.map(task => {
+          const status = statusOf(task);
+          const classes = [
+            'card',
+            task.id === selectedId ? 'selected' : '',
+            selectedDeps.has(task.id) ? 'dependency' : '',
+            selectedDownstream.has(task.id) ? 'dependent' : ''
+          ].filter(Boolean).join(' ');
+          return `<button class="${classes}" type="button" data-task="${task.id}" data-kind="${task.kind}">
+            <span class="card-id">${task.id} / ${task.kind}</span>
+            <span class="card-title">${escapeHtml(task.title)}</span>
+            <span class="card-meta">
+              <span class="badge ${status}">${statusLabel(status)}</span>
+              <span class="badge">${escapeHtml(task.effort)}人日</span>
+            </span>
+          </button>`;
+        }).join('');
+        return `<section class="phase" data-phase="${phase.id}">
+          <div class="phase-head">
+            <h3 class="phase-title">
+              <span>${phase.name}: ${phase.title}</span>
+              <span class="phase-count">${phaseTasks.length}/${tasks.filter(task => task.phase === phase.id).length}</span>
+            </h3>
+            <p class="phase-sub">${phase.note}</p>
+          </div>
+          <div class="cards">${cards || '<div class="empty-column">条件に合うタスクなし</div>'}</div>
+        </section>`;
+      }).join('');
+      board.querySelectorAll('[data-task]').forEach(button => {
+        button.addEventListener('click', () => selectTask(button.dataset.task, false));
+      });
+      requestAnimationFrame(drawLinks);
+    }
+
+    function renderDetail() {
+      const task = taskMap.get(selectedId);
+      if (!task) {
+        detail.innerHTML = '<h2>詳細</h2><div class="detail-empty">カードを選ぶと詳細が出ます。</div>';
+        return;
+      }
+      const status = statusOf(task);
+      const deps = depIds(task);
+      const nonTaskDeps = task.deps.filter(dep => !taskMap.has(dep));
+      const next = downstream(task.id);
+      const blockersNow = blockers(task);
+      detail.innerHTML = `
+        <h2>詳細</h2>
+        <h3 class="detail-title">${task.id} ${escapeHtml(task.title)}</h3>
+        <div class="detail-meta">
+          <span class="badge">${task.kind}</span>
+          <span class="badge ${status}">${statusLabel(status)}</span>
+          <span class="badge">${escapeHtml(task.effort)}人日</span>
+        </div>
+        <div class="field">
+          <span class="field-label">成果物</span>
+          <p class="field-value">${escapeHtml(task.deliverable)}</p>
+        </div>
+        <div class="field">
+          <span class="field-label">完了条件</span>
+          <p class="field-value">${escapeHtml(task.done)}</p>
+        </div>
+        <div class="field">
+          <span class="field-label">依存関係</span>
+          <div class="dep-buttons">
+            ${deps.length ? deps.map(dep => depButton(dep, blockersNow.includes(dep))).join('') : '<span class="muted">なし</span>'}
+            ${nonTaskDeps.includes('OQ') ? '<span class="badge open">OPEN_QUESTIONS</span>' : ''}
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-label">後続タスク</span>
+          <div class="dep-buttons">
+            ${next.length ? next.map(dep => depButton(dep, false)).join('') : '<span class="muted">なし</span>'}
+          </div>
+        </div>
+        ${isOpenBlocked(task) ? `<div class="field">
+          <span class="field-label">未決ブロッカー</span>
+          <p class="field-value">${openQuestions.map(escapeHtml).join('<br>')}</p>
+        </div>` : ''}
+        <label class="toggle-row">
+          <input type="checkbox" id="doneToggle" ${isDone(task) ? 'checked' : ''}>
+          <span>このタスクを完了扱いにする</span>
+        </label>
+      `;
+      detail.querySelectorAll('[data-jump]').forEach(button => {
+        button.addEventListener('click', () => selectTask(button.dataset.jump, true));
+      });
+      document.getElementById('doneToggle').addEventListener('change', event => {
+        if (event.target.checked) doneIds.add(task.id);
+        else doneIds.delete(task.id);
+        localStorage.setItem(doneStoreKey, JSON.stringify([...doneIds]));
+        render();
+      });
+    }
+
+    function depButton(id, blocking) {
+      const task = taskMap.get(id);
+      const label = task ? `${id} ${task.title}` : id;
+      return `<button class="dep-button ${blocking ? 'blocking' : ''}" type="button" data-jump="${id}">${escapeHtml(label)}</button>`;
+    }
+
+    function selectTask(id, scroll) {
+      if (!taskMap.has(id)) return;
+      selectedId = id;
+      localStorage.setItem(selectedStoreKey, selectedId);
+      render();
+      if (scroll) {
+        requestAnimationFrame(() => {
+          const el = board.querySelector(`[data-task="${CSS.escape(id)}"]`);
+          if (el) el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+        });
+      }
+    }
+
+    function drawLinks() {
+      const wrapRect = boardWrap.getBoundingClientRect();
+      const boardRect = board.getBoundingClientRect();
+      const width = Math.max(board.scrollWidth, boardRect.width);
+      const height = Math.max(board.scrollHeight, boardRect.height);
+      links.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      links.style.width = `${width}px`;
+      links.style.height = `${height}px`;
+      const selected = taskMap.get(selectedId);
+      if (!selected) {
+        links.innerHTML = '';
+        return;
+      }
+      const related = [
+        ...depIds(selected).map(dep => [dep, selected.id, 'dep']),
+        ...downstream(selected.id).map(next => [selected.id, next, 'next'])
+      ];
+      const paths = related.map(([from, to, type]) => {
+        const fromEl = board.querySelector(`[data-task="${CSS.escape(from)}"]`);
+        const toEl = board.querySelector(`[data-task="${CSS.escape(to)}"]`);
+        if (!fromEl || !toEl) return '';
+        const a = fromEl.getBoundingClientRect();
+        const b = toEl.getBoundingClientRect();
+        const x1 = a.right - boardRect.left;
+        const y1 = a.top + a.height / 2 - boardRect.top;
+        const x2 = b.left - boardRect.left;
+        const y2 = b.top + b.height / 2 - boardRect.top;
+        const mid = Math.max(40, Math.abs(x2 - x1) / 2);
+        const color = type === 'dep' ? '#b45309' : '#047857';
+        return `<path d="M ${x1} ${y1} C ${x1 + mid} ${y1}, ${x2 - mid} ${y2}, ${x2} ${y2}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`;
+      }).join('');
+      links.innerHTML = paths;
+    }
+
+    function render() {
+      renderChips();
+      renderStats();
+      renderQuickLists();
+      renderBoard();
+      renderDetail();
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    statusSelect.addEventListener('change', event => {
+      statusFilter = event.target.value;
+      render();
+    });
+
+    searchInput.addEventListener('input', event => {
+      searchText = event.target.value;
+      render();
+    });
+
+    document.getElementById('resetButton').addEventListener('click', () => {
+      doneIds = new Set(initialDone);
+      localStorage.setItem(doneStoreKey, JSON.stringify([...doneIds]));
+      render();
+    });
+
+    document.getElementById('fitButton').addEventListener('click', () => {
+      fitMode = !fitMode;
+      document.getElementById('fitButton').textContent = fitMode ? '通常表示' : '全体表示';
+      render();
+    });
+
+    window.addEventListener('resize', () => requestAnimationFrame(drawLinks));
+    boardWrap.addEventListener('scroll', () => requestAnimationFrame(drawLinks));
+    render();
+  </script>
+</body>
+</html>
