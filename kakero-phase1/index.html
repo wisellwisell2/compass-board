@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KAKERO Phase 1 Data Loader</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1f2a26;
+      --muted: #66736d;
+      --line: #dce5df;
+      --paper: #fffdf8;
+      --soft: #f4f8f0;
+      --panel: #ffffff;
+      --accent: #2d7c62;
+      --accent-dark: #1d5b48;
+      --amber: #b76e21;
+      --rose: #b94d5b;
+      --blue: #4178a8;
+      --shadow: 0 14px 34px rgba(39, 55, 48, 0.12);
+      font-family: "Yu Gothic UI", "Hiragino Sans", "Meiryo", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      letter-spacing: 0;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100dvh;
+      padding: 18px;
+    }
+
+    .shell {
+      width: min(1160px, 100%);
+      margin: 0 auto;
+    }
+
+    .hero {
+      display: grid;
+      gap: 14px;
+      padding: 20px 0 18px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--accent-dark);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 8vw, 52px);
+      line-height: 1.06;
+    }
+
+    .lead {
+      max-width: 740px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.8;
+    }
+
+    .status-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 14px 0 22px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .pill strong {
+      color: var(--ink);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--soft);
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.4;
+    }
+
+    .panel-subtitle {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .panel-body {
+      padding: 16px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      min-height: 86px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .metric-value {
+      margin-top: 8px;
+      font-size: 20px;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .card-tree {
+      display: grid;
+      gap: 12px;
+    }
+
+    .k-card,
+    .candidate {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .k-card-header {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .k-card-title {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .k-card-title strong,
+    .subcard strong,
+    .candidate strong {
+      overflow-wrap: anywhere;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      width: fit-content;
+      min-height: 28px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .badge.active {
+      color: var(--accent-dark);
+      border-color: #9ac7b7;
+      background: #ecf8f3;
+    }
+
+    .badge.todo,
+    .badge.draft {
+      color: var(--blue);
+      border-color: #b7cee3;
+      background: #f0f6fb;
+    }
+
+    .badge.locked {
+      color: var(--amber);
+      border-color: #dfc49b;
+      background: #fff8eb;
+    }
+
+    .subcards {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      background: #fbfcfa;
+    }
+
+    .subcard {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 12px;
+    }
+
+    .subcard-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .task-list,
+    .dependency-list,
+    .memory-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .task,
+    .dependency,
+    .memory-item {
+      display: grid;
+      gap: 4px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .task span,
+    .dependency span,
+    .memory-item span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .section-note {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .health-score {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .score-orb {
+      display: grid;
+      place-items: center;
+      width: 86px;
+      height: 86px;
+      border-radius: 50%;
+      background: #eaf6ef;
+      color: var(--accent-dark);
+      border: 1px solid #b9dccc;
+      font-size: 28px;
+      font-weight: 900;
+    }
+
+    .lane-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .lane {
+      display: grid;
+      gap: 7px;
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .lane-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .meter {
+      height: 8px;
+      border-radius: 999px;
+      background: #edf1ee;
+      overflow: hidden;
+    }
+
+    .meter-fill {
+      height: 100%;
+      width: var(--lane-width);
+      background: var(--accent);
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .candidate {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .candidate-parts {
+      display: grid;
+      gap: 8px;
+    }
+
+    .candidate-part {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .primary-button {
+      min-height: 42px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      padding: 10px 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .primary-button:hover,
+    .primary-button:focus-visible {
+      background: var(--accent-dark);
+    }
+
+    .primary-button:disabled {
+      cursor: not-allowed;
+      background: #9aa5a0;
+    }
+
+    .error-box {
+      display: none;
+      padding: 12px;
+      border: 1px solid #e0a5ad;
+      border-radius: 8px;
+      background: #fff1f3;
+      color: #792f39;
+      line-height: 1.6;
+    }
+
+    .error-box.visible {
+      display: block;
+    }
+
+    .empty {
+      padding: 12px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      background: #fff;
+    }
+
+    footer {
+      margin: 20px 0 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 880px) {
+      .grid,
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-header,
+      .k-card-header,
+      .subcard-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .badge {
+        white-space: normal;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="shell">
+      <section class="hero" aria-labelledby="page-title">
+        <div class="eyebrow">KAKERO Phase 1 / Data Loader PoC</div>
+        <h1 id="page-title">盤面データ、画面に流す。</h1>
+        <p class="lead">
+          `sample_board.json` と `sample_haiku_output.json` を読み込み、KAKERO v0.1 のデータ骨格がUI上で成立するか確認するための静的レビュー画面です。
+          AI本実装・保存本実装・決済は含めません。
+        </p>
+      </section>
+
+      <div id="load-error" class="error-box" role="alert"></div>
+
+      <section class="status-bar" aria-label="読み込み状態">
+        <div class="pill">board: <strong id="board-load-status">読み込み中</strong></div>
+        <div class="pill">haiku sample: <strong id="haiku-load-status">読み込み中</strong></div>
+        <div class="pill">local state: <strong id="local-state-status">未変更</strong></div>
+      </section>
+
+      <section class="panel" aria-labelledby="summary-title">
+        <div class="panel-header">
+          <div>
+            <h2 id="summary-title" class="panel-title">盤面サマリー</h2>
+            <p class="panel-subtitle">schema / board / nodes / edges の最小確認。</p>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="summary-grid" id="summary-grid"></div>
+        </div>
+      </section>
+
+      <div class="grid" style="margin-top: 16px;">
+        <div class="stack">
+          <section class="panel" aria-labelledby="tree-title">
+            <div class="panel-header">
+              <div>
+                <h2 id="tree-title" class="panel-title">カード階層</h2>
+                <p class="panel-subtitle">card → subcard → task の親子関係。未解決の依存もここで見ます。</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div id="card-tree" class="card-tree"></div>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="haiku-title">
+            <div class="panel-header">
+              <div>
+                <h2 id="haiku-title" class="panel-title">Haiku出力サンプルの変換口</h2>
+                <p class="panel-subtitle">本物のHaiku APIは呼ばず、サンプルJSONをカード候補として表示します。</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div id="haiku-candidate"></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="stack">
+          <section class="panel" aria-labelledby="health-title">
+            <div class="panel-header">
+              <div>
+                <h2 id="health-title" class="panel-title">けんこうマップ</h2>
+                <p class="panel-subtitle">ToDoの羅列ではなく、生活状態の盤面として見る領域。</p>
+              </div>
+            </div>
+            <div class="panel-body" id="health-map"></div>
+          </section>
+
+          <section class="panel" aria-labelledby="memory-title">
+            <div class="panel-header">
+              <div>
+                <h2 id="memory-title" class="panel-title">きこうか君に覚えてほしいことリスト</h2>
+                <p class="panel-subtitle">会話ログではなく、明示的に保持する記憶項目です。</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <ul id="memory-list" class="memory-list"></ul>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <footer>
+        この画面は Phase 1 の静的PoCです。保存はローカル状態のみ、リロードで戻ります。
+      </footer>
+    </div>
+  </main>
+
+  <script>
+    const boardUrl = "./sample_board.json";
+    const haikuUrl = "./sample_haiku_output.json";
+    let boardState = null;
+    let haikuSample = null;
+    let candidateAdded = false;
+
+    const statusLabels = {
+      active: "進行中",
+      todo: "未着手",
+      locked: "未解放",
+      draft: "候補",
+      done: "完了"
+    };
+
+    const statusIcon = {
+      active: "●",
+      todo: "◇",
+      locked: "□",
+      draft: "△",
+      done: "✓"
+    };
+
+    function text(value, fallback = "未設定") {
+      if (value === null || value === undefined || value === "") return fallback;
+      return String(value);
+    }
+
+    function escapeHtml(value) {
+      return text(value, "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+      })[char]);
+    }
+
+    async function loadJson(url) {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`${url} を読み込めませんでした (${response.status})`);
+      }
+      try {
+        return await response.json();
+      } catch (error) {
+        throw new Error(`${url} のJSON構造が壊れています: ${error.message}`);
+      }
+    }
+
+    function showError(message) {
+      const box = document.getElementById("load-error");
+      box.textContent = message;
+      box.classList.add("visible");
+    }
+
+    function setStatus(id, value) {
+      document.getElementById(id).textContent = value;
+    }
+
+    function renderSummary() {
+      const nodes = Array.isArray(boardState.nodes) ? boardState.nodes : [];
+      const edges = Array.isArray(boardState.edges) ? boardState.edges : [];
+      const board = boardState.board || {};
+      const summary = [
+        ["schema_version", boardState.schema_version],
+        ["board", board.title || board.id],
+        ["phase", board.current_phase],
+        ["monthly mode", board.monthly_mode],
+        ["nodes", nodes.length],
+        ["edges", edges.length],
+        ["cards", nodes.filter((node) => node.type === "card").length],
+        ["health score", boardState.health_map && boardState.health_map.score]
+      ];
+
+      document.getElementById("summary-grid").innerHTML = summary.map(([label, value]) => `
+        <div class="metric">
+          <div class="metric-label">${escapeHtml(label)}</div>
+          <div class="metric-value">${escapeHtml(value)}</div>
+        </div>
+      `).join("");
+    }
+
+    function badge(status) {
+      const safeStatus = text(status, "unknown");
+      const label = statusLabels[safeStatus] || safeStatus;
+      const icon = statusIcon[safeStatus] || "・";
+      return `<span class="badge ${escapeHtml(safeStatus)}">${escapeHtml(icon)} ${escapeHtml(label)}</span>`;
+    }
+
+    function buildGraph() {
+      const nodes = Array.isArray(boardState.nodes) ? boardState.nodes : [];
+      const edges = Array.isArray(boardState.edges) ? boardState.edges : [];
+      const nodesById = new Map(nodes.map((node) => [node.id, node]));
+      const childrenByFrom = new Map();
+      const dependenciesByFrom = new Map();
+
+      edges.forEach((edge) => {
+        if (edge.type === "contains") {
+          if (!childrenByFrom.has(edge.from)) childrenByFrom.set(edge.from, []);
+          childrenByFrom.get(edge.from).push(edge.to);
+        }
+        if (edge.type === "depends_on") {
+          if (!dependenciesByFrom.has(edge.from)) dependenciesByFrom.set(edge.from, []);
+          dependenciesByFrom.get(edge.from).push(edge);
+        }
+      });
+
+      return { nodes, edges, nodesById, childrenByFrom, dependenciesByFrom };
+    }
+
+    function sortNodes(nodes) {
+      return [...nodes].sort((a, b) => {
+        const orderA = a.metadata && Number.isFinite(a.metadata.display_order) ? a.metadata.display_order : 999;
+        const orderB = b.metadata && Number.isFinite(b.metadata.display_order) ? b.metadata.display_order : 999;
+        return orderA - orderB || text(a.title).localeCompare(text(b.title), "ja");
+      });
+    }
+
+    function renderCardTree() {
+      const { nodes, nodesById, childrenByFrom, dependenciesByFrom } = buildGraph();
+      const cards = sortNodes(nodes.filter((node) => node.type === "card"));
+      const tree = document.getElementById("card-tree");
+
+      if (!cards.length) {
+        tree.innerHTML = `<div class="empty">card ノードがありません。</div>`;
+        return;
+      }
+
+      tree.innerHTML = cards.map((card) => {
+        const children = (childrenByFrom.get(card.id) || []).map((id) => nodesById.get(id)).filter(Boolean);
+        const subcards = children.filter((node) => node.type === "subcard");
+        const directTasks = children.filter((node) => node.type === "task");
+        const dependencies = dependenciesByFrom.get(card.id) || [];
+
+        const dependencyHtml = dependencies.length ? `
+          <ul class="dependency-list" aria-label="未解決の依存関係">
+            ${dependencies.map((edge) => {
+              const target = nodesById.get(edge.to);
+              return `
+                <li class="dependency">
+                  <strong>依存: ${escapeHtml(target ? target.title : edge.to)}</strong>
+                  <span>${escapeHtml(edge.note || "依存理由は未設定")}</span>
+                </li>
+              `;
+            }).join("")}
+          </ul>
+        ` : "";
+
+        const subcardHtml = subcards.map((subcard) => {
+          const tasks = (childrenByFrom.get(subcard.id) || []).map((id) => nodesById.get(id)).filter((node) => node && node.type === "task");
+          return `
+            <article class="subcard">
+              <div class="subcard-head">
+                <strong>${escapeHtml(subcard.title)}</strong>
+                ${badge(subcard.status)}
+              </div>
+              ${renderTasks(tasks)}
+            </article>
+          `;
+        }).join("");
+
+        return `
+          <article class="k-card">
+            <div class="k-card-header">
+              <div class="k-card-title">
+                <strong>${escapeHtml(card.title)}</strong>
+                <span class="small">${escapeHtml(card.success || "成功条件は未設定")}</span>
+              </div>
+              ${badge(card.status)}
+            </div>
+            <div class="subcards">
+              ${dependencyHtml}
+              ${subcardHtml || ""}
+              ${directTasks.length ? `<article class="subcard"><strong>直下タスク</strong>${renderTasks(directTasks)}</article>` : ""}
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderTasks(tasks) {
+      if (!tasks.length) return `<div class="empty">task はまだありません。</div>`;
+      return `
+        <ul class="task-list">
+          ${tasks.map((task) => `
+            <li class="task">
+              <strong>${escapeHtml(task.title)}</strong>
+              <span>${escapeHtml(statusLabels[task.status] || task.status)} / effort: ${escapeHtml(task.effort)} / due: ${escapeHtml(task.due_policy)}</span>
+            </li>
+          `).join("")}
+        </ul>
+      `;
+    }
+
+    function renderHealthMap() {
+      const health = boardState.health_map || {};
+      const lanes = health.lanes || {};
+      const laneEntries = Object.entries(lanes);
+      const score = Number.isFinite(health.score) ? health.score : 0;
+      const healthEl = document.getElementById("health-map");
+
+      healthEl.innerHTML = `
+        <div class="health-score">
+          <div class="score-orb" aria-label="総合けんこうポイント">${escapeHtml(score)}</div>
+          <div>
+            <strong>総合けんこうポイント</strong>
+            <p class="section-note">mode: ${escapeHtml(health.mode)} / updated_by: ${escapeHtml((health.updated_by || []).join(", "))}</p>
+          </div>
+        </div>
+        <div class="lane-list">
+          ${laneEntries.map(([key, lane]) => {
+            const laneScore = Number.isFinite(lane.score) ? lane.score : 0;
+            const width = Math.max(0, Math.min(100, ((laneScore + 2) / 5) * 100));
+            return `
+              <div class="lane">
+                <div class="lane-top">
+                  <strong>${escapeHtml(lane.label || key)}</strong>
+                  <span class="badge">${escapeHtml(laneScore)}</span>
+                </div>
+                <div class="meter" aria-hidden="true"><div class="meter-fill" style="--lane-width: ${width}%;"></div></div>
+                <span class="small">${escapeHtml(lane.comment || "コメント未設定。カード反映PoCで意味ある説明に育てる対象。")}</span>
+              </div>
+            `;
+          }).join("") || `<div class="empty">health_map.lanes がありません。</div>`}
+        </div>
+      `;
+    }
+
+    function renderMemoryItems() {
+      const items = Array.isArray(boardState.memory_items) ? boardState.memory_items : [];
+      const memoryList = document.getElementById("memory-list");
+
+      memoryList.innerHTML = items.length ? items.map((item) => `
+        <li class="memory-item">
+          <strong>${escapeHtml(item.text)}</strong>
+          <span>visibility: ${escapeHtml(item.visibility)} / pinned: ${escapeHtml(item.pinned)}</span>
+        </li>
+      `).join("") : `<li class="empty">memory_items がありません。</li>`;
+    }
+
+    function renderHaikuCandidate() {
+      const host = document.getElementById("haiku-candidate");
+      if (!haikuSample) {
+        host.innerHTML = `<div class="empty">sample_haiku_output.json を読み込み中です。</div>`;
+        return;
+      }
+
+      const parser = haikuSample.parser_output || {};
+      const patch = haikuSample.kakero_v0_1_patch || {};
+      const patchNodes = Array.isArray(patch.nodes) ? patch.nodes : [];
+      const patchEdges = Array.isArray(patch.edges) ? patch.edges : [];
+      const affected = patch.health_map_suggestion && patch.health_map_suggestion.affected_lanes;
+      const rejection = haikuSample.rejection_example || {};
+
+      host.innerHTML = `
+        <article class="candidate">
+          <div>
+            <span class="badge draft">△ カード候補</span>
+            <p class="section-note">raw input: ${escapeHtml(haikuSample.raw_input)}</p>
+            <strong>${escapeHtml(parser.card)}</strong>
+          </div>
+          <div class="candidate-parts">
+            <div class="candidate-part">
+              <strong>subcards</strong>
+              <p class="small">${escapeHtml((parser.subcards || []).join(" / "))}</p>
+            </div>
+            <div class="candidate-part">
+              <strong>tasks</strong>
+              <p class="small">${escapeHtml((parser.tasks || []).join(" / "))}</p>
+            </div>
+            <div class="candidate-part">
+              <strong>success</strong>
+              <p class="small">${escapeHtml(parser.success)}</p>
+            </div>
+            <div class="candidate-part">
+              <strong>内部データv0.1 patch</strong>
+              <p class="small">nodes: ${escapeHtml(patchNodes.length)} / edges: ${escapeHtml(patchEdges.length)} / affected health lanes: ${escapeHtml((affected || []).join(", "))}</p>
+            </div>
+            <div class="candidate-part">
+              <strong>脱線拒否サンプル</strong>
+              <p class="small">${escapeHtml(rejection.raw_input)} -> ${escapeHtml(rejection.output)}</p>
+            </div>
+          </div>
+          <div class="actions">
+            <button type="button" class="primary-button" id="add-candidate-button" ${candidateAdded ? "disabled" : ""}>盤面に追加（仮）</button>
+            <span class="small">保存はローカル状態のみ。リロードすると元に戻ります。</span>
+          </div>
+        </article>
+      `;
+
+      document.getElementById("add-candidate-button").addEventListener("click", addCandidateToBoard);
+    }
+
+    function addCandidateToBoard() {
+      if (candidateAdded || !haikuSample || !boardState) return;
+      const patch = haikuSample.kakero_v0_1_patch || {};
+      const patchNodes = Array.isArray(patch.nodes) ? patch.nodes : [];
+      const patchEdges = Array.isArray(patch.edges) ? patch.edges : [];
+      const existingNodeIds = new Set((boardState.nodes || []).map((node) => node.id));
+      const existingEdgeIds = new Set((boardState.edges || []).map((edge) => edge.id));
+
+      boardState = {
+        ...boardState,
+        nodes: [...(boardState.nodes || []), ...patchNodes.filter((node) => !existingNodeIds.has(node.id))],
+        edges: [...(boardState.edges || []), ...patchEdges.filter((edge) => !existingEdgeIds.has(edge.id))]
+      };
+      candidateAdded = true;
+      setStatus("local-state-status", "候補を追加済み");
+      renderAll();
+    }
+
+    function renderAll() {
+      renderSummary();
+      renderCardTree();
+      renderHealthMap();
+      renderMemoryItems();
+      renderHaikuCandidate();
+    }
+
+    async function init() {
+      try {
+        boardState = await loadJson(boardUrl);
+        setStatus("board-load-status", "OK");
+      } catch (error) {
+        setStatus("board-load-status", "NG");
+        showError(error.message);
+        return;
+      }
+
+      try {
+        haikuSample = await loadJson(haikuUrl);
+        setStatus("haiku-load-status", "OK");
+      } catch (error) {
+        setStatus("haiku-load-status", "NG");
+        showError(error.message);
+      }
+
+      renderAll();
+    }
+
+    init();
+  </script>
+</body>
+</html>

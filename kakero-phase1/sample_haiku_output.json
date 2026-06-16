@@ -1,0 +1,105 @@
+{
+  "raw_input": "痩せたい",
+  "parser_output": {
+    "card": "体重を落とす",
+    "subcards": [
+      "食事を整える",
+      "睡眠を戻す",
+      "歩く・動く",
+      "記録する"
+    ],
+    "tasks": [
+      "今日の体重を記録する",
+      "夜に食べるものを1つ軽くする",
+      "寝る前にスマホを遠くへ置く",
+      "10分だけ歩く"
+    ],
+    "premises": [
+      "無理な食事制限をしない",
+      "体調が悪い日は休む"
+    ],
+    "dependencies": [
+      "睡眠と食事の現状を把握する"
+    ],
+    "success": "体重と生活リズムが改善し、無理なく続く状態になっている"
+  },
+  "kakero_v0_1_patch": {
+    "nodes": [
+      {
+        "id": "card_generated_001",
+        "type": "card",
+        "title": "体重を落とす",
+        "status": "draft",
+        "phase": "phase_0_5",
+        "success": "体重と生活リズムが改善し、無理なく続く状態になっている",
+        "source": "haiku"
+      },
+      {
+        "id": "subcard_generated_001",
+        "type": "subcard",
+        "title": "食事を整える",
+        "status": "todo"
+      },
+      {
+        "id": "subcard_generated_002",
+        "type": "subcard",
+        "title": "睡眠を戻す",
+        "status": "todo"
+      },
+      {
+        "id": "task_generated_001",
+        "type": "task",
+        "title": "今日の体重を記録する",
+        "status": "todo",
+        "effort": "small",
+        "due_policy": "no_pressure"
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge_generated_001",
+        "type": "contains",
+        "from": "card_generated_001",
+        "to": "subcard_generated_001"
+      },
+      {
+        "id": "edge_generated_002",
+        "type": "contains",
+        "from": "card_generated_001",
+        "to": "subcard_generated_002"
+      },
+      {
+        "id": "edge_generated_003",
+        "type": "contains",
+        "from": "subcard_generated_001",
+        "to": "task_generated_001"
+      },
+      {
+        "id": "edge_generated_004",
+        "type": "affects",
+        "from": "card_generated_001",
+        "to": "health_body",
+        "weight": 2
+      },
+      {
+        "id": "edge_generated_005",
+        "type": "affects",
+        "from": "card_generated_001",
+        "to": "health_life_base",
+        "weight": 1
+      }
+    ],
+    "health_map_suggestion": {
+      "affected_lanes": [
+        "body",
+        "life_base",
+        "time_margin"
+      ],
+      "note": "痩せたいは心身だけでなく、睡眠・食事・時間余白に関係する"
+    }
+  },
+  "rejection_example": {
+    "raw_input": "今日の天気は？",
+    "output": "イマソノハナシヲシテマセン"
+  }
+}
