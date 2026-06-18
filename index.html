@@ -314,6 +314,32 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
 .m-item:last-child{border-bottom:none;}
 .m-item .mi{font-size:19px;}
 
+.wanted-list{display:grid; gap:8px; margin-top:10px;}
+.wanted-row{
+  background:#fff; border:1.5px solid #e8e2d4;
+  border-radius:14px; padding:10px 12px;
+}
+.wanted-row .wanted-head{display:flex; align-items:flex-start; gap:8px;}
+.wanted-row .wanted-title{flex:1; min-width:0; font-weight:900; line-height:1.45;}
+.wanted-row .wanted-meta{font-size:11.5px; color:var(--ink-soft); line-height:1.6; margin-top:4px;}
+.wanted-row .wanted-badge{
+  flex:none; border-radius:999px; padding:3px 8px;
+  background:#f1ece1; color:var(--ink-soft);
+  font-size:10.5px; font-weight:900;
+}
+.wanted-actions{display:flex; gap:8px; margin-top:10px;}
+.wanted-actions .btn{flex:1;}
+.print-root{display:none;}
+.print-date{font-size:11px; color:#666; margin:0 0 12px;}
+.print-section{break-inside:avoid; margin:0 0 16px;}
+.print-section h2{font-size:16px; margin:0 0 8px;}
+.print-card{border:1px solid #ccc; border-radius:8px; padding:8px; margin:0 0 8px;}
+.print-card h3{font-size:14px; margin:0 0 4px;}
+.print-card p{margin:2px 0; font-size:11px;}
+.print-table{width:100%; border-collapse:collapse; font-size:10.5px;}
+.print-table th,.print-table td{border:1px solid #bbb; padding:5px; vertical-align:top; text-align:left;}
+.print-table th{background:#eee;}
+
 .g-row{
   display:flex; align-items:center; gap:10px;
   background:#fff; border:1.5px solid #e8e2d4;
@@ -350,6 +376,13 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
 
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important;}
+}
+@media print{
+  body{background:#fff; color:#111; overflow:visible;}
+  #boardView,#compassView,#dock,#toastWrap,#fx,.ovl,input[type="file"]{display:none !important;}
+  .print-root{display:block !important; padding:0; font-family:'BIZ UDGothic','Yu Gothic',sans-serif;}
+  .print-root h1{font-size:20px; margin:0 0 4px;}
+  @page{size:auto; margin:12mm;}
 }
 </style>
 </head>
@@ -392,6 +425,7 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
 
 <div id="toastWrap"></div>
 <div id="fx"></div>
+<section id="printRoot" class="print-root" aria-hidden="true"></section>
 <input type="file" id="importFile" accept="application/json,.json" hidden>
 <input type="file" id="importXlsx" accept=".xlsx,.xls" hidden>
 
@@ -478,6 +512,7 @@ const SEED = {
     { id:"c31", kind:"dream", phaseId:"ph5", title:"北極点を蹴る", status:"todo", why:"「これが北極点か」とつぶやきたい", dream:"", unlockNote:"条件未設定（遠くで光ってろ）", memo:"", subcards:[] },
     { id:"c32", kind:"dream", phaseId:"ph5", title:"MIGで宇宙体験", status:"todo", why:"", dream:"", unlockNote:"条件未設定（遠くで光ってろ）", memo:"", subcards:[] }
   ],
+  wantedItems: [],
   settings: { lastView: "board" }
 };
 
@@ -510,13 +545,40 @@ function fillDefaults(c){
   return c;
 }
 
+function normalizeWantedItem(item){
+  const raw = item || {};
+  return {
+    id: raw.id || uid('w'),
+    title: raw.title || raw.rawTitle || '',
+    why: raw.why || '',
+    budget: raw.budget || '',
+    period: raw.period || '',
+    dependencyNote: raw.dependencyNote || raw.dependency || '',
+    memo: raw.memo || '',
+    convertedCardId: raw.convertedCardId || null,
+    createdBy: raw.createdBy || 'user',
+    createdAt: raw.createdAt || nowISO(),
+    updatedAt: raw.updatedAt || nowISO(),
+    deletedAt: raw.deletedAt || null
+  };
+}
+
+function ensureStateDefaults(){
+  state.phases = Array.isArray(state.phases) ? state.phases : [];
+  state.cards = Array.isArray(state.cards) ? state.cards : [];
+  state.cards.forEach(fillDefaults);
+  state.wantedItems = Array.isArray(state.wantedItems) ? state.wantedItems.map(normalizeWantedItem) : [];
+  state.settings = state.settings || {};
+  if (!state.settings.lastView) state.settings.lastView = 'board';
+}
+
 function load(){
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) { state = JSON.parse(raw); state.cards.forEach(fillDefaults); return; }
+    if (raw) { state = JSON.parse(raw); ensureStateDefaults(); return; }
   } catch(e) {}
   state = JSON.parse(JSON.stringify(SEED));
-  state.cards.forEach(fillDefaults);
+  ensureStateDefaults();
   autoLayout();
   save();
 }
@@ -544,9 +606,35 @@ function cardEmoji(c){
   return stEmoji(cardStatus(c));
 }
 const liveCards = () => state.cards.filter(c => !c.deletedAt);
+const liveWantedItems = () => state.wantedItems.filter(w => !w.deletedAt);
 const sortedPhases = () => [...state.phases].sort((a,b) => a.order - b.order);
 const cardById = id => state.cards.find(c => c.id === id);
 const phaseById = id => state.phases.find(p => p.id === id);
+
+function createWantedItem(values){
+  const v = values || {};
+  return normalizeWantedItem({
+    title: (v.title || '').trim(),
+    why: (v.why || '').trim(),
+    budget: (v.budget || '').trim(),
+    period: (v.period || '').trim(),
+    dependencyNote: (v.dependencyNote || '').trim(),
+    memo: (v.memo || '').trim()
+  });
+}
+
+function statusLabel(status){
+  if (status === 'doing') return 'やってる';
+  if (status === 'done') return 'おわった';
+  if (status === 'lock' || status === 'locked') return 'ロック';
+  return 'まだ';
+}
+
+function shortText(value, max){
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  return text.length > max ? text.slice(0, max - 1) + '…' : text;
+}
 
 /* ---------- 自動レイアウト ---------- */
 const estH = c => c.kind === 'wait' ? 52 : 58 + (c.subcards.length ? 40 : 0);
@@ -1301,6 +1389,8 @@ function openMenu(){
   o.appendChild(sh);
 
   const items = [
+    ['★','やりたいことリスト', () => { close(); openWantedList(); }],
+    ['P','印刷 / PDF保存', () => { close(); openPrintMenu(); }],
     ['✨','＋ 新規カードを追加', () => { close(); openCreate(); }],
     ['📤','データをエクスポート（JSON保存）', () => { close(); exportJSON(); }],
     ['📥','データをインポート（全置換）', () => { close(); $('importFile').click(); }],
@@ -1318,6 +1408,179 @@ function openMenu(){
   const note = el('div', null, 'データはこの端末のブラウザにだけ保存されてるよ。機種変更の前にエクスポートしてね。');
   note.style.cssText = 'font-size:11.5px;color:var(--ink-soft);margin-top:14px;line-height:1.7;';
   sh.appendChild(note);
+}
+
+function openWantedList(){
+  const { o, close } = overlay(false);
+  const sh = el('div','sheet');
+  sh.appendChild(el('div','grab'));
+  sh.appendChild(el('h3', null, 'やりたいことリスト'));
+  o.appendChild(sh);
+
+  let title = '', why = '', budget = '', period = '', dependencyNote = '', memo = '';
+  const render = () => {
+    list.innerHTML = '';
+    const items = liveWantedItems();
+    count.textContent = `${items.length}件`;
+    if (!items.length){
+      const empty = el('div', null, 'まだ登録がありません。');
+      empty.style.cssText = 'font-size:12.5px;color:var(--ink-soft);padding:8px 2px;';
+      list.appendChild(empty);
+      return;
+    }
+    for (const item of items){
+      const row = el('article','wanted-row');
+      const head = el('div','wanted-head');
+      head.appendChild(el('div','wanted-title', item.title || '無題'));
+      head.appendChild(el('span','wanted-badge', item.convertedCardId ? 'カード化済み' : '未カード化'));
+      row.appendChild(head);
+      const details = [
+        item.why && `なぜ: ${item.why}`,
+        item.budget && `予算: ${item.budget}`,
+        item.period && `期間: ${item.period}`,
+        item.dependencyNote && `依存: ${item.dependencyNote}`,
+        item.memo && `備考: ${item.memo}`
+      ].filter(Boolean).join(' / ');
+      if (details) row.appendChild(el('div','wanted-meta', details));
+      const actions = el('div','wanted-actions');
+      const del = el('button','btn danger mini','削除');
+      del.type = 'button';
+      del.addEventListener('click', () => {
+        item.deletedAt = nowISO();
+        item.updatedAt = nowISO();
+        save();
+        render();
+        toast('やりたいことを削除しました');
+      });
+      actions.appendChild(del);
+      row.appendChild(actions);
+      list.appendChild(row);
+    }
+  };
+
+  sh.appendChild(fld('やりたいこと', tIn('', v => title = v, '入れ墨を入れたい')));
+  sh.appendChild(fld('なぜやりたい', tArea('', v => why = v, '理由や背景')));
+  sh.appendChild(fld('予算', tIn('', v => budget = v, '10万円')));
+  sh.appendChild(fld('期間', tIn('', v => period = v, '2026年夏')));
+  sh.appendChild(fld('依存関係', tIn('', v => dependencyNote = v, '先に決めること')));
+  sh.appendChild(fld('備考', tArea('', v => memo = v, 'メモ')));
+
+  const add = el('button','btn','1件追加');
+  add.type = 'button';
+  add.addEventListener('click', () => {
+    if (!title.trim()){ toast('やりたいことを入力してください'); return; }
+    state.wantedItems.push(createWantedItem({ title, why, budget, period, dependencyNote, memo }));
+    title = why = budget = period = dependencyNote = memo = '';
+    save();
+    close();
+    openWantedList();
+    toast('やりたいことを追加しました');
+  });
+  sh.appendChild(add);
+
+  let bulk = '';
+  const bulkArea = tArea('', v => bulk = v, '1行につき1件ずつ追加');
+  bulkArea.style.marginTop = '12px';
+  sh.appendChild(fld('一括貼り付け', bulkArea));
+  const bulkBtn = el('button','btn ghost','一括追加');
+  bulkBtn.type = 'button';
+  bulkBtn.addEventListener('click', () => {
+    const lines = bulk.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+    if (!lines.length){ toast('追加する行がありません'); return; }
+    lines.forEach(line => state.wantedItems.push(createWantedItem({ title: line })));
+    save();
+    close();
+    openWantedList();
+    toast(`${lines.length}件追加しました`);
+  });
+  sh.appendChild(bulkBtn);
+
+  const head = el('div','g-row');
+  head.style.marginTop = '14px';
+  head.appendChild(el('div','g-t','登録済み'));
+  const count = el('div','wanted-badge','0件');
+  head.appendChild(count);
+  sh.appendChild(head);
+  const list = el('div','wanted-list');
+  sh.appendChild(list);
+
+  const done = el('button','btn','閉じる');
+  done.type = 'button';
+  done.style.marginTop = '12px';
+  done.addEventListener('click', close);
+  sh.appendChild(done);
+  render();
+}
+
+function openPrintMenu(){
+  const { o, close } = overlay(false);
+  const sh = el('div','sheet');
+  sh.appendChild(el('div','grab'));
+  sh.appendChild(el('h3', null, '印刷 / PDF保存'));
+  o.appendChild(sh);
+  const note = el('div', null, 'ブラウザの印刷機能を使います。送信先でPDF保存も選べます。');
+  note.style.cssText = 'font-size:12.5px;color:var(--ink-soft);line-height:1.7;margin-bottom:12px;';
+  sh.appendChild(note);
+  const map = el('button','btn','コンパスマップを印刷');
+  map.type = 'button';
+  map.addEventListener('click', () => { close(); printView('map'); });
+  sh.appendChild(map);
+  const wanted = el('button','btn ghost','やりたいことリストを印刷');
+  wanted.type = 'button';
+  wanted.style.marginTop = '8px';
+  wanted.addEventListener('click', () => { close(); printView('wanted'); });
+  sh.appendChild(wanted);
+}
+
+function printView(type){
+  const root = $('printRoot');
+  root.innerHTML = '';
+  root.setAttribute('aria-hidden', 'false');
+  root.appendChild(el('h1', null, type === 'wanted' ? 'やりたいことリスト' : 'コンパスマップ'));
+  root.appendChild(el('p','print-date', `出力日: ${new Date().toLocaleString('ja-JP')}`));
+  if (type === 'wanted') buildWantedPrintView(root);
+  else buildMapPrintView(root);
+  setTimeout(() => window.print(), 30);
+}
+
+function buildMapPrintView(root){
+  for (const phase of sortedPhases()){
+    const section = el('section','print-section');
+    section.appendChild(el('h2', null, phase.name));
+    for (const card of liveCards().filter(c => c.phaseId === phase.id)){
+      const box = el('article','print-card');
+      box.appendChild(el('h3', null, card.title));
+      box.appendChild(el('p', null, `状態: ${statusLabel(cardStatus(card))}`));
+      const line = [
+        card.period && `期間: ${card.period}`,
+        card.budget && `予算: ${card.budget}`,
+        card.memo && `メモ: ${shortText(card.memo, 70)}`
+      ].filter(Boolean).join(' / ');
+      if (line) box.appendChild(el('p', null, line));
+      if (card.subcards?.length){
+        box.appendChild(el('p', null, card.subcards.map(s => `${s.title} (${statusLabel(s.status)})${s.memo ? ' - ' + shortText(s.memo, 50) : ''}`).join(' / ')));
+      }
+      section.appendChild(box);
+    }
+    root.appendChild(section);
+  }
+}
+
+function buildWantedPrintView(root){
+  const table = el('table','print-table');
+  const thead = document.createElement('thead');
+  const hrow = document.createElement('tr');
+  ['やりたいこと','なぜやりたい','予算','期間','依存関係','備考','カード化済み'].forEach(label => hrow.appendChild(el('th', null, label)));
+  thead.appendChild(hrow);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  for (const item of liveWantedItems()){
+    const row = document.createElement('tr');
+    [item.title, item.why, item.budget, item.period, item.dependencyNote, item.memo, item.convertedCardId ? '済' : '未'].forEach(value => row.appendChild(el('td', null, value || '')));
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+  root.appendChild(table);
 }
 
 function exportJSON(){
@@ -1340,8 +1603,8 @@ $('importFile').addEventListener('change', e => {
       const data = JSON.parse(r.result);
       if (!Array.isArray(data.cards) || !Array.isArray(data.phases)) throw new Error('bad');
       if (!confirm('今のデータをすべて置き換えるよ。いい？')) return;
-      data.cards.forEach(fillDefaults);
       state = data;
+      ensureStateDefaults();
       selectedId = null;
       save(); autoLayout(); save();
       renderBoard(); if (view === 'compass') renderCompass();
