@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>コンパスデータ読み込み</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif;background:#0d1130;color:#fff;margin:0;padding:24px;line-height:1.7}main{max-width:720px;margin:0 auto}.card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:20px;padding:20px;margin:16px 0}button,label{display:block;width:100%;box-sizing:border-box;border:0;border-radius:14px;padding:14px 16px;margin:10px 0;font-weight:800;font-size:16px;text-align:center}button{background:#ff9f43;color:#211}button.ghost,label{background:rgba(255,255,255,.12);color:#fff}button.danger{background:#ff5c7a;color:#fff}textarea{width:100%;box-sizing:border-box;min-height:180px;border-radius:14px;padding:12px;font-size:13px}small{color:#b9b8d8}a{color:#ffd166}.status{white-space:pre-wrap;background:rgba(0,0,0,.25);border-radius:12px;padding:12px;color:#e9e7ff}</style>
+</head>
+<body>
+<main>
+<h1>コンパスデータ読み込み</h1>
+<p>GitHub上のJSON、手元のJSONファイル、貼り付けJSONを <code>localStorage.compassBoard.v1</code> に保存して、コンパス本体へ戻します。</p>
+<div class="card">
+<h2>GitHub版を取り込む</h2>
+<p><small><code>data/compass-board.json</code> がある場合だけ動きます。なければ下のファイル/貼り付けを使ってください。</small></p>
+<button id="loadRemote">GitHub版JSONを取り込む</button>
+</div>
+<div class="card">
+<h2>JSONファイルを取り込む</h2>
+<label for="fileInput">JSONファイルを選択</label>
+<input id="fileInput" type="file" accept="application/json,.json" hidden>
+</div>
+<div class="card">
+<h2>JSONを貼り付ける</h2>
+<textarea id="paste" placeholder='{"version":1,"phases":[...],"cards":[...]}'></textarea>
+<button id="loadPaste" class="ghost">貼り付けJSONを取り込む</button>
+</div>
+<div class="card">
+<h2>ローカルデータ操作</h2>
+<button id="clearLocal" class="danger">ローカルデータを消す</button>
+<p><a href="./">コンパスへ戻る</a></p>
+</div>
+<div class="status" id="status">待機中</div>
+</main>
+<script>
+'use strict';
+const KEY='compassBoard.v1';
+const statusEl=document.getElementById('status');
+function log(msg){statusEl.textContent=msg;}
+function validate(data){
+  if(!data||!Array.isArray(data.cards)||!Array.isArray(data.phases)) throw new Error('cards/phases がないJSONです');
+  return data;
+}
+function store(data,source){
+  validate(data);
+  localStorage.setItem(KEY,JSON.stringify(data));
+  log(`${source}を保存しました。カード${data.cards.length}件 / フェーズ${data.phases.length}件。1秒後に戻ります。`);
+  setTimeout(()=>location.href='./',1000);
+}
+document.getElementById('loadRemote').addEventListener('click',async()=>{
+  try{
+    log('GitHub版JSONを取得中...');
+    const res=await fetch('./data/compass-board.json?ts='+Date.now(),{cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status+'。data/compass-board.json がまだ無い可能性があります');
+    store(await res.json(),'GitHub版JSON');
+  }catch(e){log('失敗: '+e.message);}
+});
+document.getElementById('fileInput').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0];
+  e.target.value='';
+  if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{try{store(JSON.parse(r.result),'選択ファイル');}catch(err){log('失敗: '+err.message);}};
+  r.onerror=()=>log('失敗: ファイルを読めません');
+  r.readAsText(f);
+});
+document.getElementById('loadPaste').addEventListener('click',()=>{
+  try{store(JSON.parse(document.getElementById('paste').value),'貼り付けJSON');}catch(e){log('失敗: '+e.message);}
+});
+document.getElementById('clearLocal').addEventListener('click',()=>{
+  if(confirm('コンパスのローカル保存データを消します。いいですか？')){localStorage.removeItem(KEY);log('ローカルデータを削除しました。');}
+});
+</script>
+</body>
+</html>
