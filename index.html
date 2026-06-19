@@ -148,6 +148,9 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
   box-shadow:0 18px 38px rgba(20,12,60,.35);
   z-index:50; transition:none; opacity:.96;
 }
+/* 移動モード（ロック解除中）だけカードをドラッグ可能にする */
+body.move-mode .card{ cursor:grab; touch-action:none; outline:2px dashed rgba(6,214,160,.7); }
+body.move-mode .card:active{ cursor:grabbing; }
 .card.kind-dream{
   background:linear-gradient(135deg, rgba(255,255,255,.78), rgba(206,214,255,.5));
   border:1.5px solid rgba(255,255,255,.75);
@@ -420,6 +423,7 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
   <button class="dock-btn" id="dkView"><span class="ic">🧭</span><span id="dkViewLbl">コンパス</span></button>
   <button class="dock-btn" id="dkLoad"><span class="ic">📥</span><span>読み込み</span></button>
   <button class="dock-btn primary" id="dkSave"><span class="ic">📤</span><span>保存</span></button>
+  <button class="dock-btn" id="dkLock"><span class="ic">🔒</span><span id="dkLockLbl">ロック</span></button>
   <button class="dock-btn" id="dkMenu"><span class="ic">⋯</span><span>メニュー</span></button>
 </nav>
 
@@ -853,36 +857,75 @@ function attachPillPointer(pill, m, idx){
 
 /* ---------- ポインタ操作（タップ／長押しドラッグ） ---------- */
 let drag = null;
+let locked = true;                       // 初期状態はロック中（カードは動かない）
+const activePointers = new Set();
+addEventListener('pointerdown',  e => activePointers.add(e.pointerId), true);
+addEventListener('pointerup',    e => activePointers.delete(e.pointerId), true);
+addEventListener('pointercancel',e => activePointers.delete(e.pointerId), true);
+
 function preventScroll(e){ e.preventDefault(); }
+
+// 表示縮尺：CSS zoom（ピンチ俯瞰）や画面リサイズに毎回追従する。offsetWidth は zoom の影響を受けない＝scale≈現在のzoom。
+function boardScale(){
+  const board = $('board');
+  if (!board) return 1;
+  const rect = board.getBoundingClientRect();
+  const baseW = board.offsetWidth || parseFloat(board.style.width) || rect.width || 1;
+  const s = rect.width / baseW;
+  return (isFinite(s) && s > 0) ? s : 1;
+}
+// 画面座標(clientX/Y) → ボード内座標。zoom と board のスクロール/位置を補正。
+function boardPoint(clientX, clientY){
+  const board = $('board');
+  const rect = board.getBoundingClientRect();
+  const s = boardScale();
+  return { x: (clientX - rect.left) / s, y: (clientY - rect.top) / s };
+}
 
 function attachCardPointer(elCard, c){
   elCard.addEventListener('pointerdown', e => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
+    const pointerId = e.pointerId;
     const startX = e.clientX, startY = e.clientY;
-    let grabbed = false, cancelled = false;
-    const timer = setTimeout(() => {
-      grabbed = true;
+    let moved = false, dragging = false;
+
+    const startDrag = () => {
+      dragging = true;
       drag = { c, elCard };
       elCard.classList.add('dragging');
-      try { elCard.setPointerCapture(e.pointerId); } catch(err){}
+      try { elCard.setPointerCapture(pointerId); } catch(err){}
       if (navigator.vibrate) navigator.vibrate(12);
       document.addEventListener('touchmove', preventScroll, { passive:false });
-      const r = elCard.getBoundingClientRect();
-      drag.dx = startX - r.left; drag.dy = startY - r.top;
-    }, 300);
+      const phase = metrics.list.find(x => x.p.id === c.phaseId) || metrics.list[0];
+      const p0 = boardPoint(startX, startY);
+      drag.offX = p0.x - (phase.off + (c.x || 0));   // ポインタとカード左上のボード内ズレ
+      drag.offY = p0.y - (c.y || 0);
+    };
+    const endDrag = (commit) => {
+      elCard.classList.remove('dragging');
+      document.removeEventListener('touchmove', preventScroll);
+      if (commit && drag && drag.gx != null){
+        const cx = drag.gx + (elCard.offsetWidth || 175) / 2;
+        const m = metrics.list.find(x => cx >= x.off && cx < x.off + x.w) || metrics.list.at(-1);
+        c.phaseId = m.p.id;
+        c.x = Math.max(6, drag.gx - m.off);          // フェーズ相対のボード内座標で保存
+        c.y = drag.gy;
+        touchCard(c); save();                        // 移動したら自動で localStorage に保存
+      }
+      drag = null; dragging = false;
+      renderBoard();
+    };
 
     const onMove = ev => {
-      if (!grabbed){
-        if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 9){
-          cancelled = true;
-          if (timer) clearTimeout(timer);
-          cleanup();
-        }
-        return;
-      }
-      const br = $('board').getBoundingClientRect();
-      let gx = ev.clientX - br.left - drag.dx;
-      let gy = ev.clientY - br.top - drag.dy;
+      if (ev.pointerId !== pointerId) return;
+      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 9) moved = true;
+      if (dragging && activePointers.size >= 2){ cleanup(); endDrag(false); return; } // ピンチに委譲
+      if (locked || !moved || !metrics) return;      // ロック中はドラッグしない（タップ判定のみ）
+      if (activePointers.size >= 2) return;           // 2本指はピンチ優先
+      if (!dragging) startDrag();
+      ev.preventDefault();
+      const p = boardPoint(ev.clientX, ev.clientY);
+      let gx = p.x - drag.offX, gy = p.y - drag.offY;
       gx = Math.max(6, Math.min(gx, metrics.total - 120));
       gy = Math.max(48, Math.min(gy, metrics.boardH - 70));
       drag.gx = gx; drag.gy = gy;
@@ -890,45 +933,27 @@ function attachCardPointer(elCard, c){
       elCard.style.top = gy + 'px';
     };
     const onUp = ev => {
-      if (timer) clearTimeout(timer);
+      if (ev.pointerId !== pointerId) return;
       cleanup();
-      if (grabbed){
-        elCard.classList.remove('dragging');
-        document.removeEventListener('touchmove', preventScroll);
-        if (drag && drag.gx != null){
-          const cw = elCard.offsetWidth;
-          const cx = drag.gx + cw/2;
-          let m = metrics.list.find(x => cx >= x.off && cx < x.off + x.w) || metrics.list.at(-1);
-          c.phaseId = m.p.id;
-          c.x = Math.max(6, drag.gx - m.off);
-          c.y = drag.gy;
-          touchCard(c); save();
-        }
-        drag = null;
-        renderBoard();
-        return;
-      }
-      if (cancelled) return;
-      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 9) return;
-      handleCardTap(c, ev);
+      if (dragging){ endDrag(true); return; }
+      if (moved) return;                              // パン/スクロールだったのでタップ扱いしない
+      const tapEv = (ev.target && ev.target.closest) ? ev : { target: elCard };
+      handleCardTap(c, tapEv);                        // ロック中・移動モードどちらでもタップで詳細
+    };
+    const onCancel = ev => {
+      if (ev.pointerId !== pointerId) return;
+      cleanup();
+      if (dragging) endDrag(false);
     };
     const cleanup = () => {
-      elCard.removeEventListener('pointermove', onMove);
-      elCard.removeEventListener('pointerup', onUp);
-      elCard.removeEventListener('pointercancel', onCancel);
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onCancel);
     };
-    const onCancel = () => {
-      if (timer) clearTimeout(timer);
-      if (grabbed){
-        elCard.classList.remove('dragging');
-        document.removeEventListener('touchmove', preventScroll);
-        drag = null; renderBoard();
-      }
-      cleanup();
-    };
-    elCard.addEventListener('pointermove', onMove);
-    elCard.addEventListener('pointerup', onUp);
-    elCard.addEventListener('pointercancel', onCancel);
+    // ドキュメントに張ることで、ポインタがカード外へ出ても確実に後始末できる。
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onCancel);
   });
 }
 
@@ -1583,6 +1608,29 @@ function buildWantedPrintView(root){
   root.appendChild(table);
 }
 
+/* ---------- 読み込み（JSON / Excel を選ぶ） ---------- */
+function openLoadChooser(){
+  const { o, close } = overlay(false);
+  const sh = el('div','sheet');
+  sh.appendChild(el('div','grab'));
+  sh.appendChild(el('h3', null, '読み込み'));
+  o.appendChild(sh);
+  const items = [
+    ['🗂️','JSONを読み込む（全データ置換）', () => { close(); $('importFile').click(); }],
+    ['📊','Excel / xlsx を読み込む（カード追加）', () => { close(); $('importXlsx').click(); }],
+  ];
+  for (const [ic, label, fn] of items){
+    const b = el('button','m-item'); b.type = 'button';
+    b.appendChild(el('span','mi', ic));
+    b.appendChild(el('span', null, label));
+    b.addEventListener('click', fn);
+    sh.appendChild(b);
+  }
+  const note = el('div', null, 'JSONはバックアップ全体の復元（全置換）。xlsxは「やりたいこと」カードの追加取り込みだよ。');
+  note.style.cssText = 'font-size:11.5px;color:var(--ink-soft);margin-top:14px;line-height:1.7;';
+  sh.appendChild(note);
+}
+
 function exportJSON(){
   const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
@@ -1760,10 +1808,27 @@ function toast(msg){
   setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 350); }, 2100);
 }
 
+/* ---------- ロック（カード移動 ON/OFF） ---------- */
+function updateLockUI(){
+  const b = $('dkLock');
+  b.querySelector('.ic').textContent = locked ? '🔒' : '🔓';
+  $('dkLockLbl').textContent = locked ? 'ロック' : '移動可';
+  b.classList.toggle('toggled', !locked);
+  document.body.classList.toggle('move-mode', !locked);
+}
+function toggleLock(){
+  locked = !locked;
+  if (locked){ drag = null; }                 // 念のため進行中ドラッグを破棄
+  selectCard(null);
+  updateLockUI();
+  toast(locked ? '🔒 ロックした（カードは固定）' : '🔓 移動できます（カードをドラッグ）');
+}
+
 /* ---------- ドック ---------- */
 $('dkView').addEventListener('click', () => setView(view === 'board' ? 'compass' : 'board'));
 $('dkSave').addEventListener('click', exportJSON);
-$('dkLoad').addEventListener('click', () => $('importXlsx').click());
+$('dkLoad').addEventListener('click', openLoadChooser);
+$('dkLock').addEventListener('click', toggleLock);
 $('dkMenu').addEventListener('click', openMenu);
 
 addEventListener('resize', () => { if (view === 'board') renderBoard(); });
@@ -1771,6 +1836,7 @@ addEventListener('resize', () => { if (view === 'board') renderBoard(); });
 /* ---------- 起動 ---------- */
 load();
 setView(state.settings?.lastView === 'compass' ? 'compass' : 'board');
+updateLockUI();                                // 初期状態はロック中
 </script>
 </body>
 </html>
