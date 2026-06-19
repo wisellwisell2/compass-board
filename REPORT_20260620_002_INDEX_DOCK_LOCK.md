@@ -44,8 +44,13 @@
 - 旧来の「ロングプレスで掴む」操作感は廃止（ロック解除で即ドラッグに変更）。意図的変更。
 
 ## 動作確認（ライブ反映ログ）
-- push 後に GitHub Pages のビルド完了を確認し、ライブ `index.html` の下バー・ロック・zoom-safe ドラッグをスモークテストする（結果は追記）。
+- コミット SHA: `48ef546422a350c34e3a938698bc1525e4753dee`（push 済み `0c9d4f4..48ef546 main -> main`）。
+- GitHub Pages: commit `48ef546` で `built`。ライブ `index.html` に `dkLock`・`boardScale`・`openLoadChooser` を確認。
+- ライブ・スモークテスト（Playwright, テストブラウザの SEED）:
+  - 下バー = `dkView / dkLoad / dkSave / dkLock / dkMenu`。
+  - ロック中ドラッグ移動 **0px**。解除後 zoom=0.5 で押下ジャンプ **0px**、ドラッグ画面 60×40px→ボード **120×80px**、`localStorage` 保存反映。
 - 確認URL: https://wisellwisell2.github.io/compass-board/
+- 報告書URL: https://github.com/wisellwisell2/compass-board/blob/main/REPORT_20260620_002_INDEX_DOCK_LOCK.md
 
 ## 次に出すべき指示 / 次アクション案（チャッピー宛・コピペ可）
 ```
