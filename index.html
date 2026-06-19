@@ -30,7 +30,7 @@
   --fs-base:14px;
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-html,body{height:100%; margin:0; overflow:hidden;}
+html,body{height:100%; margin:0; overflow:hidden; overscroll-behavior:none;}
 body{
   font-family:'Zen Maru Gothic','Hiragino Maru Gothic ProN','BIZ UDGothic','Yu Gothic',sans-serif;
   font-size:var(--fs-base);
@@ -49,6 +49,7 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
   position:absolute; inset:0;
   overflow:auto;
   -webkit-overflow-scrolling:touch;
+  overscroll-behavior:none;          /* 引っ張って更新(pull-to-refresh)・バウンスを止める */
   scrollbar-width:none;
 }
 #boardScroll::-webkit-scrollbar{display:none;}
@@ -196,6 +197,7 @@ body.move-mode .card:active{ cursor:grabbing; }
 #compassView{
   position:fixed; inset:0; display:none; overflow-y:auto;
   -webkit-overflow-scrolling:touch;
+  overscroll-behavior:none;
   background:
     radial-gradient(circle at 80% -10%, rgba(120,140,255,.25), transparent 50%),
     radial-gradient(circle at 10% 110%, rgba(80,255,190,.12), transparent 45%),
