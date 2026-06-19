@@ -61,4 +61,31 @@ arrange.html をコミットして GitHub main にプッシュしてください
 - 直したのは `arrange.html` のみ。`index.html` は無傷。データ正本は `localStorage["compassBoard.v1"]`、SEED を正にしないこと。
 - 飛びの原因は `index.html` 純正ドラッグの zoom 無補正。arrange.html 側で純正ドラッグを capture で無効化し、`boardScale()` で zoom 補正したドラッグに置換済み。
 - 既定はロック。色＋アイコン＋キャプションで状態を提示。保存は localStorage、clear/空上書き厳禁。
-- 残タスク候補: ①main へ push してライブ実機確認 ②index.html 本体へロック/解除統合（要相談）③ピンチ俯瞰のカード上始動エッジ改善。
+- 残タスク候補: ①（完了）main へ push しライブ反映＋検証 ②index.html 本体へロック/解除統合 ③ピンチ俯瞰のカード上始動エッジ改善。
+
+## GitHub 反映・ライブ検証ログ（2026-06-20）
+- push 済み: `66044a4..95605ae main -> main`
+- ブランチ: `main`
+- コミット SHA: `95605ae5c46997a7c546f261242be624ffa4ec61`
+- 変更ファイル: `arrange.html`（変更）/ `REPORT_20260620_001_ARRANGE_LOCK_DRAG.md`（新規）。`index.html` 無変更。
+- GitHub Pages: commit `95605ae` で `built`。配信中の `arrange.html` に `compass-move-mode`・`移動モード`・`ロック中` を確認。
+- 確認 URL: https://wisellwisell2.github.io/compass-board/arrange.html
+- 報告書 URL: https://github.com/wisellwisell2/compass-board/blob/main/REPORT_20260620_001_ARRANGE_LOCK_DRAG.md
+
+### ライブ自動検証（Playwright, テストブラウザの SEED 32枚で実施）
+- zoom=0.5 解除→ドラッグ: 押下時ジャンプ **0px**、画面 60×40px に対しボード **120×80px**（=Δ/zoom）正確、`localStorage` 保存（c02: x=176, y=224）。
+- ロック中ドラッグ: 移動 **0px**。
+- コンソールエラーは `favicon.ico` の 404 のみ（機能と無関係）。
+
+## レビュワー（チャッピー）への確認事項
+本作業はテストブラウザの SEED データで検証済み。**ユーザー実機の本物の localStorage データでの最終確認は未実施**（実データはローカルにもテスト環境にも存在しないため）。以下を実機（PC＋スマホ）で確認してほしい：
+1. 自分のデータが入った状態で arrange.html を**強制リロード**（旧キャッシュ排除）し、32枚以上の実カードが表示されるか。
+2. 「移動モード」にしてピンチ俯瞰（縮小表示）した状態でカードをドラッグ → 触った瞬間に飛ばず、指の位置どおりに動き、離した位置に留まるか。
+3. 通常画面 index.html に戻っても配置が維持されているか（= localStorage 保存の往復）。
+4. 「ロック中」でカードをドラッグ/ロングプレスしても動かないこと、タップで詳細が開くこと。
+5. ピンチ俯瞰を**カード上から2本指で開始**したケース（既知の制約：その場合ズームが効かない。空き領域から始めれば従来どおり）。許容するか改善要否を判断。
+6. スマホ実機での状態表示（🔒/🖐・色・キャプション）の視認性。
+
+未解決・要判断（チャッピー宛）:
+- index.html 本体にも同じロック/解除を統合するか（現状は arrange.html のみ安全。通常画面のカード直接ドラッグは旧来の飛ぶ挙動が残る）。
+- 既知の制約（カード上始動ピンチ）の改善（2本目検知時に1本目を解放してピンチへ委譲する案）を入れるか。
