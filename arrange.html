@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>コンパスボード 位置調整</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0d1130;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;}
+  iframe{position:fixed;inset:0;width:100%;height:100%;border:0;background:#0d1130;}
+  #bar{
+    position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top));z-index:10;
+    display:flex;gap:8px;align-items:center;justify-content:center;pointer-events:none;
+  }
+  #bar button,#bar a{
+    pointer-events:auto;border:0;border-radius:999px;padding:9px 13px;font-weight:800;font-size:13px;
+    text-decoration:none;color:#fff;background:rgba(13,17,48,.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    box-shadow:0 6px 18px rgba(0,0,0,.25);line-height:1;
+  }
+  #bar button.primary{background:linear-gradient(135deg,#ff9f43,#f0772b);}
+  #bar button.on{background:linear-gradient(135deg,#06d6a0,#2aa879);}
+  #status{
+    position:fixed;left:50%;top:calc(55px + env(safe-area-inset-top));transform:translateX(-50%);z-index:10;
+    color:#fff;background:rgba(13,17,48,.72);padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700;
+    pointer-events:none;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);opacity:.92;
+  }
+</style>
+</head>
+<body>
+<iframe id="app" src="./index.html" title="コンパスボード"></iframe>
+<div id="bar">
+  <button id="mode" class="primary" type="button">位置調整 OFF</button>
+  <button id="save" type="button">保存</button>
+  <a href="./index.html">通常画面</a>
+</div>
+<div id="status">カード移動時は「位置調整 ON」にする</div>
+<script>
+'use strict';
+const frame = document.getElementById('app');
+const modeBtn = document.getElementById('mode');
+const saveBtn = document.getElementById('save');
+const statusEl = document.getElementById('status');
+let arrangeMode = false;
+let injected = false;
+
+function injectFix(){
+  if (injected) return;
+  const win = frame.contentWindow;
+  const doc = frame.contentDocument;
+  if (!win || !doc || !doc.body) return;
+  injected = true;
+  const script = doc.createElement('script');
+  script.textContent = `
+(function(){
+  if (window.__compassArrangeFixInstalled) return;
+  window.__compassArrangeFixInstalled = true;
+  let arrangeMode = false;
+  let activeDrag = null;
+
+  function boardScale(){
+    const board = document.getElementById('board');
+    if (!board) return 1;
+    const rect = board.getBoundingClientRect();
+    const baseW = board.offsetWidth || parseFloat(board.style.width) || rect.width || 1;
+    const scale = rect.width / baseW;
+    return Number.isFinite(scale) && scale > 0 ? scale : 1;
+  }
+
+  function boardPoint(ev){
+    const board = document.getElementById('board');
+    const rect = board.getBoundingClientRect();
+    const scale = boardScale();
+    return {
+      x: (ev.clientX - rect.left) / scale,
+      y: (ev.clientY - rect.top) / scale
+    };
+  }
+
+  function getCardById(id){
+    try { return state.cards.find(c => c.id === id); }
+    catch(e){ return null; }
+  }
+
+  function getMetrics(){
+    try {
+      if (!metrics) renderBoard();
+      return metrics;
+    } catch(e){ return null; }
+  }
+
+  function cleanup(){
+    if (!activeDrag) return;
+    const d = activeDrag;
+    d.el.classList.remove('arrange-dragging');
+    try { d.el.releasePointerCapture(d.pointerId); } catch(e){}
+    document.removeEventListener('pointermove', onMove, true);
+    document.removeEventListener('pointerup', onUp, true);
+    document.removeEventListener('pointercancel', onCancel, true);
+    activeDrag = null;
+  }
+
+  function onMove(ev){
+    const d = activeDrag;
+    if (!d || ev.pointerId !== d.pointerId) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    ev.stopImmediatePropagation();
+    const mt = getMetrics();
+    if (!mt) return;
+    const p = boardPoint(ev);
+    let gx = p.x - d.offsetX;
+    let gy = p.y - d.offsetY;
+    gx = Math.max(6, Math.min(gx, mt.total - 120));
+    gy = Math.max(48, Math.min(gy, mt.boardH - 70));
+    d.gx = gx;
+    d.gy = gy;
+    d.el.style.left = gx + 'px';
+    d.el.style.top = gy + 'px';
+  }
+
+  function onUp(ev){
+    const d = activeDrag;
+    if (!d || ev.pointerId !== d.pointerId) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    ev.stopImmediatePropagation();
+    const mt = getMetrics();
+    if (mt && d.gx != null){
+      const centerX = d.gx + (d.el.offsetWidth || 160) / 2;
+      const phase = mt.list.find(x => centerX >= x.off && centerX < x.off + x.w) || mt.list[mt.list.length - 1];
+      d.card.phaseId = phase.p.id;
+      d.card.x = Math.max(6, d.gx - phase.off);
+      d.card.y = d.gy;
+      try { touchCard(d.card); } catch(e){ d.card.updatedAt = new Date().toISOString(); }
+      try { save(); } catch(e){ localStorage.setItem('compassBoard.v1', JSON.stringify(state)); }
+      try { renderBoard(); } catch(e){}
+    }
+    cleanup();
+  }
+
+  function onCancel(ev){
+    if (!activeDrag || ev.pointerId !== activeDrag.pointerId) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    ev.stopImmediatePropagation();
+    cleanup();
+    try { renderBoard(); } catch(e){}
+  }
+
+  document.addEventListener('pointerdown', function(ev){
+    if (!arrangeMode) return;
+    if (ev.button !== 0 && ev.pointerType === 'mouse') return;
+    const el = ev.target.closest && ev.target.closest('.card');
+    if (!el) return;
+    const card = getCardById(el.dataset.id);
+    const mt = getMetrics();
+    if (!card || !mt) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    ev.stopImmediatePropagation();
+
+    const phase = mt.list.find(x => x.p.id === card.phaseId) || mt.list[0];
+    const startGlobalX = phase.off + (card.x || 0);
+    const startGlobalY = card.y || 0;
+    const p = boardPoint(ev);
+    activeDrag = {
+      pointerId: ev.pointerId,
+      el,
+      card,
+      offsetX: p.x - startGlobalX,
+      offsetY: p.y - startGlobalY,
+      gx: startGlobalX,
+      gy: startGlobalY
+    };
+    el.classList.add('arrange-dragging');
+    try { el.setPointerCapture(ev.pointerId); } catch(e){}
+    document.addEventListener('pointermove', onMove, true);
+    document.addEventListener('pointerup', onUp, true);
+    document.addEventListener('pointercancel', onCancel, true);
+  }, true);
+
+  const style = document.createElement('style');
+  style.textContent = \`
+    body.arrange-mode .card{outline:2px dashed rgba(6,214,160,.85); cursor:grab; touch-action:none;}
+    body.arrange-mode .card:active{cursor:grabbing;}
+    .card.arrange-dragging{transform:scale(1.04)!important; z-index:999!important; opacity:.96!important; transition:none!important;}
+  \`;
+  document.head.appendChild(style);
+
+  window.__setCompassArrangeMode = function(v){
+    arrangeMode = !!v;
+    document.body.classList.toggle('arrange-mode', arrangeMode);
+    if (!arrangeMode) cleanup();
+  };
+  window.__saveCompassArrange = function(){
+    try { save(); return true; }
+    catch(e){ try { localStorage.setItem('compassBoard.v1', JSON.stringify(state)); return true; } catch(err){ return false; } }
+  };
+})();
+  `;
+  doc.body.appendChild(script);
+}
+
+frame.addEventListener('load', () => {
+  injected = false;
+  setTimeout(() => {
+    injectFix();
+    applyMode();
+  }, 250);
+});
+
+function applyMode(){
+  injectFix();
+  const win = frame.contentWindow;
+  if (win && typeof win.__setCompassArrangeMode === 'function') win.__setCompassArrangeMode(arrangeMode);
+  modeBtn.textContent = arrangeMode ? '位置調整 ON' : '位置調整 OFF';
+  modeBtn.classList.toggle('on', arrangeMode);
+  modeBtn.classList.toggle('primary', !arrangeMode);
+  statusEl.textContent = arrangeMode
+    ? '位置調整中：カードをそのままドラッグ。タップ詳細は一時停止'
+    : 'カード移動時は「位置調整 ON」にする';
+}
+
+modeBtn.addEventListener('click', () => {
+  arrangeMode = !arrangeMode;
+  applyMode();
+});
+
+saveBtn.addEventListener('click', () => {
+  injectFix();
+  const win = frame.contentWindow;
+  const ok = win && typeof win.__saveCompassArrange === 'function' ? win.__saveCompassArrange() : false;
+  statusEl.textContent = ok ? '保存した' : '保存に失敗した';
+  setTimeout(applyMode, 1200);
+});
+</script>
+</body>
+</html>
