@@ -552,6 +552,27 @@ const el = (t, cls, txt) => { const d = document.createElement(t); if (cls) d.cl
 const nowISO = () => new Date().toISOString();
 const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const DEFAULT_SUBCARD_TITLES = {
+  c02: ['睡眠薬', '散歩'],
+  c03: ['応募', '面談', '契約', '就労開始'],
+  c07: ['設立準備', '設立申請', '認可'],
+  c08: ['不動産確認', '申請', '許可', '引越し準備'],
+  c30: ['条件整理', '予算確認', '日程調整', '実行'],
+  c31: ['条件整理', '予算確認', '日程調整', '実行'],
+  c32: ['条件整理', '予算確認', '日程調整', '実行'],
+  '健康体になる！': ['睡眠薬', '散歩'],
+  '健康体になる': ['睡眠薬', '散歩'],
+  '健康づくり': ['睡眠薬', '散歩'],
+  '仕事を決める！': ['応募', '面談', '契約', '就労開始'],
+  '仕事を決める': ['応募', '面談', '契約', '就労開始'],
+  '90万案件取得': ['応募', '面談', '契約', '就労開始'],
+  '法人成り': ['設立準備', '設立申請', '認可'],
+  '渋谷30万住みたい': ['不動産確認', '申請', '許可', '引越し準備'],
+  '渋谷7分30万': ['不動産確認', '申請', '許可', '引越し準備'],
+  '小説を書きたい': ['条件整理', '予算確認', '日程調整', '実行'],
+  '北極点を蹴る': ['条件整理', '予算確認', '日程調整', '実行'],
+  'MIGで宇宙体験': ['条件整理', '予算確認', '日程調整', '実行']
+};
 
 function fillDefaults(c){
   c.kind = c.kind || 'task';
@@ -588,7 +609,16 @@ function normalizeSubcards(c){
       order: i
     });
   }
-  return fromFlat;
+  if (fromFlat.length) return fromFlat;
+  const defaults = DEFAULT_SUBCARD_TITLES[c.id] || DEFAULT_SUBCARD_TITLES[c.title];
+  if (!defaults) return [];
+  return defaults.map((title, i) => ({
+    id: `${c.id || 'card'}s${i + 1}`,
+    title,
+    status: 'todo',
+    memo: '',
+    order: i + 1
+  }));
 }
 
 function normalizeWantedItem(item){
@@ -686,7 +716,16 @@ async function readApiJson(response){
 
 function currentBoardForSync(){
   const raw = localStorage.getItem(KEY);
-  if (raw) return JSON.parse(raw);
+  if (raw){
+    const board = JSON.parse(raw);
+    const prev = state;
+    state = board;
+    ensureStateDefaults();
+    const normalized = state;
+    state = prev || normalized;
+    localStorage.setItem(KEY, JSON.stringify(normalized));
+    return normalized;
+  }
   save();
   return JSON.parse(localStorage.getItem(KEY));
 }
