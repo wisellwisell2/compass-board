@@ -53,6 +53,16 @@ input,textarea,select{font-family:inherit; font-size:15px; color:var(--ink);}
   scrollbar-width:none;
 }
 #boardScroll::-webkit-scrollbar{display:none;}
+@media (hover:hover) and (pointer:fine){
+  #boardScroll{
+    bottom:calc(var(--bar-h) + 28px);
+    scrollbar-width:auto;
+    scrollbar-color:rgba(255,255,255,.55) rgba(13,17,48,.22);
+  }
+  #boardScroll::-webkit-scrollbar{display:block; width:14px; height:14px;}
+  #boardScroll::-webkit-scrollbar-track{background:rgba(13,17,48,.22);}
+  #boardScroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.55); border-radius:999px; border:3px solid rgba(13,17,48,.22);}
+}
 #board{position:relative; min-height:100%;}
 
 /* 空のオーバーレイ（上から薄光、下へ深み） */
@@ -423,8 +433,8 @@ body.move-mode .card:active{ cursor:grabbing; }
 
 <nav id="dock" aria-label="操作バー">
   <button class="dock-btn" id="dkView"><span class="ic">🧭</span><span id="dkViewLbl">コンパス</span></button>
-  <button class="dock-btn" id="dkLoad"><span class="ic">📥</span><span>読み込み</span></button>
-  <button class="dock-btn primary" id="dkSave"><span class="ic">📤</span><span>保存</span></button>
+  <button class="dock-btn" id="dkLoad"><span class="ic">📥</span><span>取込</span></button>
+  <button class="dock-btn primary" id="dkSave"><span class="ic">📤</span><span>送信</span></button>
   <button class="dock-btn" id="dkLock"><span class="ic">🔒</span><span id="dkLockLbl">ロック</span></button>
   <button class="dock-btn" id="dkMenu"><span class="ic">⋯</span><span>メニュー</span></button>
 </nav>
@@ -439,6 +449,7 @@ body.move-mode .card:active{ cursor:grabbing; }
 'use strict';
 /* ================= データ ================= */
 const KEY = 'compassBoard.v1';
+const SYNC_KEY = 'compassBoard.sync.v1';
 const PRESET_COLORS = ['#FFE0A3','#FFC09E','#A8DDF0','#9FE3C0','#C9B8F0','#B8C4F0','#F0B8D9','#2D3561'];
 
 const SEED = {
@@ -594,6 +605,116 @@ function save(){
   catch(e) { toast('⚠️ 保存に失敗しました'); }
 }
 const touchCard = c => { c.updatedAt = nowISO(); };
+
+function readSyncMeta(){
+  try {
+    const raw = localStorage.getItem(SYNC_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return {};
+}
+
+function writeSyncMeta(next){
+  const current = readSyncMeta();
+  const deviceId = current.deviceId || makeDeviceId();
+  const meta = { ...current, ...next, deviceId };
+  try { localStorage.setItem(SYNC_KEY, JSON.stringify(meta)); }
+  catch(e) { toast('⚠️ 同期メタデータの保存に失敗しました'); }
+  return meta;
+}
+
+function makeDeviceId(){
+  try {
+    if (crypto && crypto.randomUUID) return 'pc-' + crypto.randomUUID();
+  } catch(e) {}
+  return 'pc-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+async function readApiJson(response){
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch(e) {}
+  if (!data) throw new Error(`HTTP ${response.status}: ${text.slice(0, 160) || 'API response is empty'}`);
+  return data;
+}
+
+function currentBoardForSync(){
+  const raw = localStorage.getItem(KEY);
+  if (raw) return JSON.parse(raw);
+  save();
+  return JSON.parse(localStorage.getItem(KEY));
+}
+
+async function pullBoardFromCloud(){
+  const btn = $('dkLoad');
+  btn.disabled = true;
+  try {
+    const response = await fetch('/api/board', { headers:{ 'Accept':'application/json' }, cache:'no-store' });
+    const data = await readApiJson(response);
+    if (data.ok && data.board && typeof data.board === 'object'){
+      localStorage.setItem(KEY, JSON.stringify(data.board));
+      writeSyncMeta({
+        lastRevision: data.revision || 0,
+        lastPulledAt: nowISO(),
+        lastServerUpdatedAt: data.updatedAt || null,
+        lastUpdatedBy: data.updatedBy || null
+      });
+      state = data.board;
+      ensureStateDefaults();
+      selectedId = null;
+      renderBoard();
+      if (view === 'compass') renderCompass();
+      toast('📥 取込済み');
+      return;
+    }
+    if (data.error === 'BOARD_NOT_FOUND'){
+      toast('Cloudflare上にボードがありません');
+      return;
+    }
+    toast('⚠️ 取込失敗: ' + (data.error || `HTTP ${response.status}`));
+  } catch(err){
+    toast('⚠️ 取込失敗: Cloudflare設定またはAPIを確認してください');
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function pushBoardToCloud(){
+  const btn = $('dkSave');
+  btn.disabled = true;
+  try {
+    const meta = writeSyncMeta({});
+    const board = currentBoardForSync();
+    const baseRevision = Number.isInteger(meta.lastRevision) ? meta.lastRevision : 0;
+    const response = await fetch('/api/board', {
+      method:'POST',
+      headers:{ 'Accept':'application/json', 'Content-Type':'application/json' },
+      body:JSON.stringify({ baseRevision, deviceId:meta.deviceId, board })
+    });
+    const data = await readApiJson(response);
+    if (data.ok){
+      writeSyncMeta({
+        lastRevision: data.revision || baseRevision,
+        lastPushedAt: nowISO(),
+        lastServerUpdatedAt: data.updatedAt || null
+      });
+      toast('📤 送信済み');
+      return;
+    }
+    if (data.error === 'REVISION_CONFLICT'){
+      writeSyncMeta({ serverRevision: data.serverRevision });
+      toast('サーバー側に新しいデータがあります。先に取込してください。');
+      return;
+    }
+    toast('⚠️ 送信失敗: ' + (data.error || `HTTP ${response.status}`));
+  } catch(err){
+    toast('⚠️ 送信失敗: Cloudflare設定またはAPIを確認してください');
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+  }
+}
 
 /* ---------- 状態算出 ---------- */
 function cardStatus(c){
@@ -1828,8 +1949,8 @@ function toggleLock(){
 
 /* ---------- ドック ---------- */
 $('dkView').addEventListener('click', () => setView(view === 'board' ? 'compass' : 'board'));
-$('dkSave').addEventListener('click', exportJSON);
-$('dkLoad').addEventListener('click', openLoadChooser);
+$('dkSave').addEventListener('click', pushBoardToCloud);
+$('dkLoad').addEventListener('click', pullBoardFromCloud);
 $('dkLock').addEventListener('click', toggleLock);
 $('dkMenu').addEventListener('click', openMenu);
 
