@@ -4,5 +4,5 @@ pages_build_output_dir = "."
 
 [[kv_namespaces]]
 binding = "COMPASS_BOARD_KV"
-id = "REPLACE_WITH_PRODUCTION_KV_NAMESPACE_ID"
-preview_id = "REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID"
+id = "0fe2ce6b322e438095f474121f588c4b"
+preview_id = "00c285c018554872ab44bf8b34a711fc"
