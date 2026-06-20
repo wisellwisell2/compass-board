@@ -202,6 +202,13 @@ body.move-mode .card:active{ cursor:grabbing; }
 .dock-btn:active{transform:scale(.9);}
 .dock-btn.primary{background:linear-gradient(135deg, var(--accent), var(--accent-deep)); box-shadow:0 4px 14px rgba(240,119,43,.45);}
 .dock-btn.toggled{background:rgba(255,255,255,.16);}
+.sync-stamp{
+  position:absolute; right:14px; top:-18px;
+  color:rgba(255,255,255,.82); font-size:10px; font-weight:700;
+  text-shadow:0 1px 6px rgba(5,4,30,.55);
+  pointer-events:none; white-space:nowrap;
+}
+.sync-stamp:empty{display:none;}
 
 /* ---------- 針ビュー ---------- */
 #compassView{
@@ -437,6 +444,7 @@ body.move-mode .card:active{ cursor:grabbing; }
   <button class="dock-btn primary" id="dkSave"><span class="ic">📤</span><span>送信</span></button>
   <button class="dock-btn" id="dkLock"><span class="ic">🔒</span><span id="dkLockLbl">ロック</span></button>
   <button class="dock-btn" id="dkMenu"><span class="ic">⋯</span><span>メニュー</span></button>
+  <div class="sync-stamp" id="syncStamp" aria-live="polite"></div>
 </nav>
 
 <div id="toastWrap"></div>
@@ -620,7 +628,24 @@ function writeSyncMeta(next){
   const meta = { ...current, ...next, deviceId };
   try { localStorage.setItem(SYNC_KEY, JSON.stringify(meta)); }
   catch(e) { toast('⚠️ 同期メタデータの保存に失敗しました'); }
+  updateSyncStamp(meta);
   return meta;
+}
+
+function formatSyncTime(value){
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function updateSyncStamp(meta = readSyncMeta()){
+  const el = $('syncStamp');
+  if (!el) return;
+  const stamp = meta.lastSyncedAt || meta.lastPushedAt || meta.lastPulledAt || '';
+  const formatted = formatSyncTime(stamp);
+  el.textContent = formatted ? `最終同期: ${formatted}` : '';
 }
 
 function makeDeviceId(){
@@ -655,6 +680,7 @@ async function pullBoardFromCloud(){
       localStorage.setItem(KEY, JSON.stringify(data.board));
       writeSyncMeta({
         lastRevision: data.revision || 0,
+        lastSyncedAt: nowISO(),
         lastPulledAt: nowISO(),
         lastServerUpdatedAt: data.updatedAt || null,
         lastUpdatedBy: data.updatedBy || null
@@ -696,6 +722,7 @@ async function pushBoardToCloud(){
     if (data.ok){
       writeSyncMeta({
         lastRevision: data.revision || baseRevision,
+        lastSyncedAt: nowISO(),
         lastPushedAt: nowISO(),
         lastServerUpdatedAt: data.updatedAt || null
       });
@@ -1960,6 +1987,7 @@ addEventListener('resize', () => { if (view === 'board') renderBoard(); });
 load();
 setView(state.settings?.lastView === 'compass' ? 'compass' : 'board');
 updateLockUI();                                // 初期状態はロック中
+updateSyncStamp();
 </script>
 </body>
 </html>
