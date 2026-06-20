@@ -562,12 +562,33 @@ function fillDefaults(c){
   c.budget = c.budget || '';
   c.period = c.period || '';
   c.memo = c.memo || '';
-  c.subcards = c.subcards || [];
+  c.subcards = normalizeSubcards(c);
   c.subcards.forEach((s, i) => { s.memo = s.memo || ''; s.order = i + 1; });
   if (c.deletedAt === undefined) c.deletedAt = null;
   c.createdAt = c.createdAt || nowISO();
   c.updatedAt = c.updatedAt || nowISO();
   return c;
+}
+
+function normalizeSubcards(c){
+  if (Array.isArray(c.subcards) && c.subcards.length){
+    return c.subcards;
+  }
+  const count = Number.parseInt(c.subcard_count || c.subcardCount || 0, 10);
+  const max = Number.isFinite(count) && count > 0 ? Math.min(count, 4) : 4;
+  const fromFlat = [];
+  for (let i = 1; i <= max; i++){
+    const title = String(c[`subcard${i}`] || '').trim();
+    if (!title) continue;
+    fromFlat.push({
+      id: `${c.id || 'card'}s${i}`,
+      title,
+      status: c[`subcard${i}_status`] || 'todo',
+      memo: c[`subcard${i}_memo`] || '',
+      order: i
+    });
+  }
+  return fromFlat;
 }
 
 function normalizeWantedItem(item){
@@ -677,7 +698,6 @@ async function pullBoardFromCloud(){
     const response = await fetch('/api/board', { headers:{ 'Accept':'application/json' }, cache:'no-store' });
     const data = await readApiJson(response);
     if (data.ok && data.board && typeof data.board === 'object'){
-      localStorage.setItem(KEY, JSON.stringify(data.board));
       writeSyncMeta({
         lastRevision: data.revision || 0,
         lastSyncedAt: nowISO(),
@@ -687,6 +707,7 @@ async function pullBoardFromCloud(){
       });
       state = data.board;
       ensureStateDefaults();
+      localStorage.setItem(KEY, JSON.stringify(state));
       selectedId = null;
       renderBoard();
       if (view === 'compass') renderCompass();
