@@ -1187,10 +1187,8 @@ function attachCardPointer(elCard, c){
       elCard.classList.remove('dragging');
       document.removeEventListener('touchmove', preventScroll);
       if (commit && drag && drag.gx != null){
-        const cx = drag.gx + (elCard.offsetWidth || 175) / 2;
-        const m = metrics.list.find(x => cx >= x.off && cx < x.off + x.w) || metrics.list.at(-1);
-        c.phaseId = m.p.id;
-        c.x = Math.max(6, drag.gx - m.off);          // フェーズ相対のボード内座標で保存
+        const m = metrics.list.find(x => x.p.id === c.phaseId) || metrics.list[0];
+        c.x = drag.gx - (m?.off || 0);               // 所属フェーズは変えず、境界をまたぐ位置も保存する
         c.y = drag.gy;
         touchCard(c); save();                        // 移動したら自動で localStorage に保存
       }
